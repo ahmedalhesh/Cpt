@@ -1,0 +1,52 @@
+Design and generate a complete web application called Air Safety Report System for airline pilots and safety officers.
+The goal is to replace paper-based aviation safety forms with a secure, digital reporting platform.
+
+🧩 Main Sections / Modules:
+	1.	Dashboard
+	•	Summary of total reports by type (Air Safety, Occurrence, Ramp Incident, Nonconformity, Hazard, Commander’s Discretion)
+	•	Charts: Monthly trends, causes, status breakdown
+	•	Notifications and quick access buttons
+	2.	Air Safety Report (ASR)
+	•	Fields: Flight number, aircraft type, date/time, route, description of the event, contributing factors, corrective actions, attachments, signature.
+	3.	Occurrence Report (OR)
+	•	Details of any operational or technical occurrence during flight or ground operations.
+	•	Fields: location, phase of flight, description, risk level, follow-up actions.
+	4.	Ramp Incident Report (RIR)
+	•	For ground handling or ramp-related incidents.
+	•	Fields: ground crew names, vehicle involved, location, damage type, corrective steps.
+	5.	Nonconformity Report (NCR)
+	•	For reporting procedural or safety standard violations.
+	•	Fields: department, nonconformity type, root cause, responsible person, corrective and preventive actions.
+	6.	Commander’s Discretion Form (CDF)
+	•	For flight commander decisions outside standard limits.
+	•	Fields: reason for discretion, time extension, crew fatigue details, final decision justification.
+	7.	Confidential Hazard Report (CHR)
+	•	Anonymous hazard reporting for safety awareness.
+	•	Fields: hazard description, potential impact, suggestions for prevention.
+	8.	User Management
+	•	Roles: Captain, Safety Officer, Administrator
+	•	Add/Edit users, assign roles and permissions.
+	9.	Report Review Workflow
+	•	Report submission → review → feedback → closure.
+	•	Status: Submitted / In Review / Closed / Rejected
+	•	Comments section for follow-up between pilot and safety team.
+	10.	Analytics & Reports
+	•	Export reports (PDF/Excel)
+	•	Dashboard statistics
+	•	Charts showing trends, types, and causes of safety issues.
+	11.	Settings Section
+	•	Language options (Arabic/English)
+	•	Notification settings
+	•	Form templates customization
+
+🧠 Technical Requirements
+	•	Secure login (JWT or OAuth)
+	•	Responsive design (desktop + mobile)
+	•	Upload attachments (PDF, JPG, DOCX)
+	•	Dark and light mode
+	•	Data validation
+	•	Modern, aviation-style UI (blue, gray, white theme)
+
+🧭 Goal
+
+Create a professional, easy-to-use, and secure Air Safety Reporting web system for pilots and safety departments.

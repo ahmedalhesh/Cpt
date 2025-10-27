@@ -12,6 +12,7 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "deploy": "wrangler pages deploy dist --project-name=report-sys",
+    "deploy:auto": "wrangler pages deploy dist --project-name=report-sys --compatibility-date=2024-01-01",
     "deploy:db": "wrangler d1 migrations apply air-safety-db",
     "db:migrate": "drizzle-kit generate && wrangler d1 migrations apply air-safety-db",
     "db:create": "wrangler d1 create air-safety-db",

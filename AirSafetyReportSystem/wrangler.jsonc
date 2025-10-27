@@ -1,0 +1,22 @@
+{
+  "name": "report-sys",
+  "compatibility_date": "2024-01-01",
+  "account_id": "c65441278840d45ed3cd9cfef5b898b1",
+  "assets": {
+    "directory": "./dist"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "air-safety-db",
+      "database_id": "d9132e2d-6a48-48be-a261-25210670a15f"
+    }
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    "JWT_SECRET": "your-production-jwt-secret-change-this",
+    "JWT_EXPIRES_IN": "7d"
+  },
+  "functions": "functions",
+  "compatibility_flags": ["nodejs_compat"]
+}

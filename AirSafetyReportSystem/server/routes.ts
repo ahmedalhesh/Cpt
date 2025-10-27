@@ -5,7 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { insertReportSchema, insertCommentSchema } from "@shared/schema";
 import { requireRole, validateStatusTransition } from "./middleware/auth";
 
@@ -45,22 +45,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // Auth routes are now handled in auth.ts
 
   // Report routes
-  app.get("/api/reports/stats", isAuthenticated, async (req, res) => {
+  app.get("/api/reports/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const stats = await storage.getReportStats();
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      
+      // Admin gets all reports stats, users get only their own reports stats
+      const stats = userRole === 'admin' 
+        ? await storage.getReportStats()
+        : await storage.getUserReportStats(userId);
+      
       res.json(stats);
     } catch (error) {
       console.error("Error fetching report stats:", error);
@@ -68,12 +65,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/reports/:id", isAuthenticated, async (req: any, res) => {
     try {
       const report = await storage.getReport(req.params.id);
       if (!report) {
         return res.status(404).json({ message: "Report not found" });
       }
+      
+      // Check if user can access this report
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      
+      // Admin can see all reports, other users can only see their own
+      if (userRole !== 'admin' && report.submittedBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(report);
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -81,13 +88,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/reports", isAuthenticated, async (req, res) => {
+  app.get("/api/reports", isAuthenticated, async (req: any, res) => {
     try {
       const { type, status } = req.query;
-      const reports = await storage.getAllReports({
-        type: type as string,
-        status: status as string,
-      });
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      
+      // Admin can see all reports, other users see only their own
+      const reports = userRole === 'admin' 
+        ? await storage.getAllReports({
+            type: type as string,
+            status: status as string,
+          })
+        : await storage.getUserReports(userId, {
+            type: type as string,
+            status: status as string,
+          });
+      
       res.json(reports);
     } catch (error) {
       console.error("Error fetching reports:", error);
@@ -95,9 +112,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reports by type endpoints
+  app.get("/api/reports/:type/:status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { type, status } = req.params;
+      const userId = req.user.id;
+      const userRole = req.user.role;
+      
+      // Admin can see all reports, other users see only their own
+      const reports = userRole === 'admin' 
+        ? await storage.getAllReports({
+            type: type,
+            status: status,
+          })
+        : await storage.getUserReports(userId, {
+            type: type,
+            status: status,
+          });
+      
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports by type:", error);
+      res.status(500).json({ message: "Failed to fetch reports" });
+    }
+  });
+
   app.post("/api/reports", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate the request body
       const validatedData = insertReportSchema.parse({
@@ -106,6 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const report = await storage.createReport(validatedData);
+      
       res.status(201).json(report);
     } catch (error: any) {
       console.error("Error creating report:", error);
@@ -116,21 +159,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/reports/:id/status", isAuthenticated, requireRole(['safety_officer', 'administrator']), async (req: any, res) => {
+  app.patch("/api/reports/:id/status", isAuthenticated, requireRole(['admin']), async (req: any, res) => {
     try {
+      console.log(`🔄 [SERVER] Status update request received`);
+      console.log(`🔄 [SERVER] Report ID: ${req.params.id}`);
+      console.log(`🔄 [SERVER] New status: ${req.body.status}`);
+      console.log(`🔄 [SERVER] User ID: ${req.user?.id}`);
+      console.log(`🔄 [SERVER] User role: ${req.user?.role}`);
+      
       const { status } = req.body;
       if (!['submitted', 'in_review', 'closed', 'rejected'].includes(status)) {
+        console.log(`❌ [SERVER] Invalid status: ${status}`);
         return res.status(400).json({ message: "Invalid status" });
       }
 
       // Get current report to validate transition
+      console.log(`🔍 [SERVER] Fetching current report from database...`);
       const currentReport = await storage.getReport(req.params.id);
       if (!currentReport) {
+        console.log(`❌ [SERVER] Report not found: ${req.params.id}`);
         return res.status(404).json({ message: "Report not found" });
       }
 
+      console.log(`📊 [SERVER] Current status: ${currentReport.status}, New status: ${status}`);
+
       // Validate status transition
+      console.log(`🔍 [SERVER] Validating status transition...`);
       if (!validateStatusTransition(currentReport.status, status)) {
+        console.log(`❌ [SERVER] Invalid transition: ${currentReport.status} -> ${status}`);
         return res.status(400).json({ 
           message: "Invalid status transition",
           currentStatus: currentReport.status,
@@ -143,7 +199,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log(`✅ [SERVER] Status transition valid, updating database...`);
       const report = await storage.updateReportStatus(req.params.id, status);
+      console.log(`✅ [SERVER] Status updated successfully in database`);
+      console.log(`✅ [SERVER] Updated report:`, {
+        id: report?.id,
+        status: report?.status,
+        updatedAt: report?.updatedAt
+      });
+
+      
+      console.log(`📤 [SERVER] Sending response to client...`);
       res.json(report);
     } catch (error) {
       console.error("Error updating report status:", error);
@@ -169,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/comments", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       const validatedData = insertCommentSchema.parse({
         ...req.body,
@@ -177,6 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const comment = await storage.createComment(validatedData);
+      
       res.status(201).json(comment);
     } catch (error: any) {
       console.error("Error creating comment:", error);
@@ -242,6 +309,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error downloading attachment:", error);
       res.status(500).json({ message: "Failed to download attachment" });
+    }
+  });
+
+  // Notification routes
+  app.get("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { isRead } = req.query;
+      
+      const filters = isRead !== undefined ? { isRead: isRead === 'true' } : undefined;
+      const notifications = await storage.getNotifications(userId, filters);
+      
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json(count);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const notificationId = req.params.id;
+      const notification = await storage.markNotificationAsRead(notificationId);
+      
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.patch("/api/notifications/mark-all-read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const notificationId = req.params.id;
+      await storage.deleteNotification(notificationId);
+      res.json({ message: "Notification deleted" });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ message: "Failed to delete notification" });
     }
   });
 

@@ -117,6 +117,32 @@ export function ReportForm({ type }: ReportFormProps) {
     defaultValues: {
       description: "",
       isAnonymous: false,
+      // Add default values for all possible fields
+      flightNumber: "",
+      aircraftType: "",
+      route: "",
+      eventDateTime: "",
+      contributingFactors: "",
+      correctiveActions: "",
+      location: "",
+      phaseOfFlight: "",
+      riskLevel: "low" as const,
+      followUpActions: "",
+      groundCrewNames: "",
+      vehicleInvolved: "",
+      damageType: "",
+      correctiveSteps: "",
+      department: "",
+      nonconformityType: "",
+      rootCause: "",
+      responsiblePerson: "",
+      preventiveActions: "",
+      discretionReason: "",
+      timeExtension: "",
+      crewFatigueDetails: "",
+      finalDecision: "",
+      potentialImpact: "",
+      preventionSuggestions: "",
     },
   });
 
@@ -146,7 +172,7 @@ export function ReportForm({ type }: ReportFormProps) {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/login";
         }, 500);
         return;
       }

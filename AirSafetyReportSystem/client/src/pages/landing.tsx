@@ -1,8 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Shield, FileText, Users, BarChart3, Lock, Clock } from "lucide-react";
+import { Link } from "wouter";
+import { usePublicCompanySettings } from "@/hooks/usePublicCompanySettings";
 
 export default function Landing() {
+  const { data: companySettings } = usePublicCompanySettings();
+  
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -10,10 +14,12 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
-            <span className="text-xl font-semibold tracking-tight">Air Safety Report System</span>
+            <span className="text-xl font-semibold tracking-tight">
+              {companySettings?.companyName || "Air Safety Report System"}
+            </span>
           </div>
           <Button asChild data-testid="button-login">
-            <a href="/api/login">Log In</a>
+            <Link href="/login">Log In</Link>
           </Button>
         </div>
       </header>
@@ -33,7 +39,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-wrap gap-4">
               <Button size="lg" asChild data-testid="button-get-started">
-                <a href="/api/login">Get Started</a>
+                <Link href="/login">Get Started</Link>
               </Button>
               <Button size="lg" variant="outline">Learn More</Button>
             </div>
@@ -117,7 +123,7 @@ export default function Landing() {
             Join the modern approach to aviation safety reporting. Start creating reports today.
           </p>
           <Button size="lg" asChild data-testid="button-cta-login">
-            <a href="/api/login">Access System</a>
+            <Link href="/login">Access System</Link>
           </Button>
         </div>
       </section>

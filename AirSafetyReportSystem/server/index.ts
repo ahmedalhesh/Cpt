@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { findAvailablePort, getPortFromEnv } from "./port-finder";
 
 const app = express();
 
@@ -66,16 +68,41 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // Auto port selection - find available port automatically
+  const defaultPort = getPortFromEnv();
+  
+  try {
+    const availablePort = await findAvailablePort(defaultPort);
+
+    const startServer = (portToUse: number) => {
+      const s = server.listen(portToUse, () => {
+        log(`✅ Server running on port ${portToUse}`);
+        log(`🌐 Access the application at: http://localhost:${portToUse}`);
+      });
+
+      // In very rare race conditions, the port can become busy between check and listen
+      s.on('error', async (err: any) => {
+        if (err?.code === 'EADDRINUSE') {
+          try {
+            const fallback = await findAvailablePort(portToUse + 1);
+            log(`⚠️ Port ${portToUse} just got busy. Switching to ${fallback}...`);
+            startServer(fallback);
+          } catch (_e) {
+            log(`❌ Could not find a fallback port after ${portToUse}`);
+            process.exit(1);
+          }
+        } else {
+          log(`❌ Server listen error: ${err?.message || err}`);
+          process.exit(1);
+        }
+      });
+    };
+
+    startServer(availablePort);
+
+  } catch (error) {
+    log(`❌ Could not find available port starting from ${defaultPort}`);
+    log(`💡 Try closing other applications or change PORT in .env file`);
+    process.exit(1);
+  }
 })();

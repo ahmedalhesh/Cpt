@@ -1,86 +1,130 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
-  jsonb,
-  pgTable,
-  timestamp,
-  varchar,
+  sqliteTable,
   text,
   integer,
-} from "drizzle-orm/pg-core";
+  real,
+} from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(),
+    expire: text("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // User storage table with role support
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 50 }).notNull().default("captain"), // captain, safety_officer, administrator
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text("email").unique(),
+  password: text("password"), // Hashed password
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  profileImageUrl: text("profile_image_url"),
+  role: text("role").notNull().default("captain"), // admin, captain, first_officer
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+// Company settings table
+export const companySettings = sqliteTable("company_settings", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  companyName: text("company_name").notNull().default("Air Safety System"),
+  logo: text("logo"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export type UpsertCompanySettings = typeof companySettings.$inferInsert;
+export type CompanySettings = typeof companySettings.$inferSelect;
+
+// Notifications table
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"), // info, warning, error, success
+  isRead: integer("is_read").notNull().default(0), // 0 = false, 1 = true
+  relatedReportId: text("related_report_id").references(() => reports.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export type UpsertNotification = typeof notifications.$inferInsert;
+export type Notification = typeof notifications.$inferSelect;
+
 // Reports table - stores all report types
-export const reports = pgTable("reports", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportType: varchar("report_type", { length: 50 }).notNull(), // asr, or, rir, ncr, cdf, chr
-  status: varchar("status", { length: 50 }).notNull().default("submitted"), // submitted, in_review, closed, rejected
-  submittedBy: varchar("submitted_by").notNull().references(() => users.id),
+export const reports = sqliteTable("reports", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reportType: text("report_type").notNull(), // asr, or, rir, ncr, cdf, chr
+  status: text("status").notNull().default("submitted"), // submitted, in_review, closed, rejected
+  submittedBy: text("submitted_by").notNull().references(() => users.id),
   isAnonymous: integer("is_anonymous").notNull().default(0), // 1 for CHR anonymous reports
   
   // Common fields
   description: text("description").notNull(),
   
   // Air Safety Report (ASR) fields
-  flightNumber: varchar("flight_number", { length: 20 }),
-  aircraftType: varchar("aircraft_type", { length: 100 }),
-  route: varchar("route", { length: 200 }),
-  eventDateTime: timestamp("event_date_time"),
+  flightNumber: text("flight_number"),
+  aircraftType: text("aircraft_type"),
+  route: text("route"),
+  eventDateTime: text("event_date_time"),
   contributingFactors: text("contributing_factors"),
   correctiveActions: text("corrective_actions"),
+
+  // ASR plot images and metadata
+  planImage: text("plan_image"), // data URL (base64 PNG)
+  elevImage: text("elev_image"), // data URL (base64 PNG)
+  planUnits: text("plan_units"), // 'M' or 'NM'
+  planGridX: integer("plan_grid_x"),
+  planGridY: integer("plan_grid_y"),
+  planDistanceX: real("plan_distance_x"),
+  planDistanceY: real("plan_distance_y"),
+  elevGridCol: integer("elev_grid_col"),
+  elevGridRow: integer("elev_grid_row"),
+  elevDistanceHorizM: real("elev_distance_horiz_m"),
+  elevDistanceVertFt: real("elev_distance_vert_ft"),
   
   // Occurrence Report (OR) fields
-  location: varchar("location", { length: 200 }),
-  phaseOfFlight: varchar("phase_of_flight", { length: 100 }),
-  riskLevel: varchar("risk_level", { length: 50 }), // low, medium, high, critical
+  location: text("location"),
+  phaseOfFlight: text("phase_of_flight"),
+  riskLevel: text("risk_level"), // low, medium, high, critical
   followUpActions: text("follow_up_actions"),
   
   // Ramp Incident Report (RIR) fields
   groundCrewNames: text("ground_crew_names"),
-  vehicleInvolved: varchar("vehicle_involved", { length: 200 }),
-  damageType: varchar("damage_type", { length: 200 }),
+  vehicleInvolved: text("vehicle_involved"),
+  damageType: text("damage_type"),
   correctiveSteps: text("corrective_steps"),
   
   // Nonconformity Report (NCR) fields
-  department: varchar("department", { length: 100 }),
-  nonconformityType: varchar("nonconformity_type", { length: 200 }),
+  department: text("department"),
+  nonconformityType: text("nonconformity_type"),
   rootCause: text("root_cause"),
-  responsiblePerson: varchar("responsible_person", { length: 200 }),
+  responsiblePerson: text("responsible_person"),
   preventiveActions: text("preventive_actions"),
+
+  // Generic extra data (JSON string) for various report forms
+  extraData: text("extra_data"),
   
   // Commander's Discretion Form (CDF) fields
   discretionReason: text("discretion_reason"),
-  timeExtension: varchar("time_extension", { length: 100 }),
+  timeExtension: text("time_extension"),
   crewFatigueDetails: text("crew_fatigue_details"),
   finalDecision: text("final_decision"),
   
@@ -88,8 +132,8 @@ export const reports = pgTable("reports", {
   potentialImpact: text("potential_impact"),
   preventionSuggestions: text("prevention_suggestions"),
   
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const reportsRelations = relations(reports, ({ one, many }) => ({
@@ -104,7 +148,16 @@ export const reportsRelations = relations(reports, ({ one, many }) => ({
 export type Report = typeof reports.$inferSelect;
 export type InsertReport = typeof reports.$inferInsert;
 
-export const insertReportSchema = createInsertSchema(reports).omit({
+export const insertReportSchema = createInsertSchema(reports, {
+  planGridX: (schema) => schema.min(0).optional(),
+  planGridY: (schema) => schema.min(0).optional(),
+  planDistanceX: (schema) => schema.optional(),
+  planDistanceY: (schema) => schema.optional(),
+  elevGridCol: (schema) => schema.min(0).optional(),
+  elevGridRow: (schema) => schema.min(0).optional(),
+  elevDistanceHorizM: (schema) => schema.optional(),
+  elevDistanceVertFt: (schema) => schema.optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -113,12 +166,12 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 export type InsertReportData = z.infer<typeof insertReportSchema>;
 
 // Comments table
-export const comments = pgTable("comments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportId: varchar("report_id").notNull().references(() => reports.id, { onDelete: 'cascade' }),
-  userId: varchar("user_id").notNull().references(() => users.id),
+export const comments = sqliteTable("comments", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reportId: text("report_id").notNull().references(() => reports.id, { onDelete: 'cascade' }),
+  userId: text("user_id").notNull().references(() => users.id),
   content: text("content").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const commentsRelations = relations(comments, ({ one }) => ({
@@ -143,14 +196,14 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
 export type InsertCommentData = z.infer<typeof insertCommentSchema>;
 
 // Attachments table
-export const attachments = pgTable("attachments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  reportId: varchar("report_id").notNull().references(() => reports.id, { onDelete: 'cascade' }),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileType: varchar("file_type", { length: 100 }).notNull(),
+export const attachments = sqliteTable("attachments", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  reportId: text("report_id").notNull().references(() => reports.id, { onDelete: 'cascade' }),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
-  filePath: varchar("file_path", { length: 500 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  filePath: text("file_path").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const attachmentsRelations = relations(attachments, ({ one }) => ({

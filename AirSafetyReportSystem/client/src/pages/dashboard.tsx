@@ -13,13 +13,14 @@ import {
   Clock,
   Plus,
   TrendingUp,
+  XCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ReportStats } from "@shared/schema";
 
 export default function Dashboard() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -29,7 +30,7 @@ export default function Dashboard() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        window.location.href = "/login";
       }, 500);
       return;
     }
@@ -48,37 +49,21 @@ export default function Dashboard() {
       <div className="container max-w-7xl mx-auto p-6 lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2">Dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-tight mb-2">
+            {user?.role === 'admin' ? 'Admin Dashboard' : 'My Dashboard'}
+          </h1>
           <p className="text-muted-foreground">
-            Overview of aviation safety reports and system activity
+            {user?.role === 'admin' 
+              ? 'Overview of all aviation safety reports and system activity'
+              : 'Overview of your submitted reports and their status'
+            }
           </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8 flex flex-wrap gap-3">
-          <Button asChild data-testid="button-new-asr">
-            <Link href="/reports/new/asr">
-              <Plus className="h-4 w-4 mr-2" />
-              New Air Safety Report
-            </Link>
-          </Button>
-          <Button variant="outline" asChild data-testid="button-new-or">
-            <Link href="/reports/new/or">
-              <Plus className="h-4 w-4 mr-2" />
-              New Occurrence Report
-            </Link>
-          </Button>
-          <Button variant="outline" asChild data-testid="button-view-all">
-            <Link href="/reports">
-              View All Reports
-            </Link>
-          </Button>
         </div>
 
         {/* Stats Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+            {[...Array(5)].map((_, i) => (
               <Card key={i} className="p-6">
                 <Skeleton className="h-4 w-24 mb-4" />
                 <Skeleton className="h-10 w-16 mb-2" />
@@ -87,31 +72,76 @@ export default function Dashboard() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            <StatCard
-              title="Total Reports"
-              value={stats?.total || 0}
-              icon={FileText}
-              subtitle="All report types"
-            />
-            <StatCard
-              title="In Review"
-              value={stats?.byStatus?.in_review || 0}
-              icon={Clock}
-              subtitle="Pending review"
-            />
-            <StatCard
-              title="Closed"
-              value={stats?.byStatus?.closed || 0}
-              icon={CheckCircle2}
-              subtitle="Resolved reports"
-            />
-            <StatCard
-              title="High Priority"
-              value={stats?.byStatus?.submitted || 0}
-              icon={AlertTriangle}
-              subtitle="Needs attention"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+            {user?.role === 'admin' ? (
+              // Admin Dashboard Stats
+              <>
+                <StatCard
+                  title="Total Reports"
+                  value={stats?.total || 0}
+                  icon={FileText}
+                  subtitle="All system reports"
+                />
+                <StatCard
+                  title="Pending Review"
+                  value={stats?.byStatus?.in_review || 0}
+                  icon={Clock}
+                  subtitle="Awaiting your review"
+                />
+                <StatCard
+                  title="Resolved"
+                  value={stats?.byStatus?.closed || 0}
+                  icon={CheckCircle2}
+                  subtitle="Successfully closed"
+                />
+                <StatCard
+                  title="New Submissions"
+                  value={stats?.byStatus?.submitted || 0}
+                  icon={AlertTriangle}
+                  subtitle="Require immediate attention"
+                />
+                <StatCard
+                  title="Rejected"
+                  value={stats?.byStatus?.rejected || 0}
+                  icon={XCircle}
+                  subtitle="Reports that were rejected"
+                />
+              </>
+            ) : (
+              // User Dashboard Stats
+              <>
+                <StatCard
+                  title="My Reports"
+                  value={stats?.total || 0}
+                  icon={FileText}
+                  subtitle="Reports I submitted"
+                />
+                <StatCard
+                  title="Under Review"
+                  value={stats?.byStatus?.in_review || 0}
+                  icon={Clock}
+                  subtitle="Being reviewed by admin"
+                />
+                <StatCard
+                  title="Approved"
+                  value={stats?.byStatus?.closed || 0}
+                  icon={CheckCircle2}
+                  subtitle="Successfully approved"
+                />
+                <StatCard
+                  title="Recent"
+                  value={stats?.byStatus?.submitted || 0}
+                  icon={AlertTriangle}
+                  subtitle="Recently submitted"
+                />
+                <StatCard
+                  title="Rejected"
+                  value={stats?.byStatus?.rejected || 0}
+                  icon={XCircle}
+                  subtitle="Reports that were rejected"
+                />
+              </>
+            )}
           </div>
         )}
 

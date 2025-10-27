@@ -2,9 +2,6 @@ name = "report-sys"
 compatibility_date = "2024-01-01"
 account_id = "c65441278840d45ed3cd9cfef5b898b1"
 
-[env.production]
-name = "report-sys"
-
 # D1 Database configuration
 [[d1_databases]]
 binding = "DB"
@@ -17,17 +14,11 @@ NODE_ENV = "production"
 JWT_SECRET = "your-production-jwt-secret-change-this"
 JWT_EXPIRES_IN = "7d"
 
-# Build configuration
-[build]
-command = "npm run build:cloudflare"
-cwd = "."
-
 # Pages configuration
 pages_build_output_dir = "dist"
 
 # Functions configuration
-[functions]
-directory = "functions"
+functions = "functions"
 
 # Compatibility flags
 compatibility_flags = ["nodejs_compat"]

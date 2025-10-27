@@ -4,7 +4,7 @@
 
 **Successfully Deployed!** 🎉
 
-- **Live URL**: https://report-sys.pages.dev
+- **Live URL**: https://fc0f8c48.report-sys.pages.dev
 - **Project Name**: report-sys
 - **Account ID**: c65441278840d45ed3cd9cfef5b898b1
 - **Database ID**: d9132e2d-6a48-48be-a261-25210670a15f

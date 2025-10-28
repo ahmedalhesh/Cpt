@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { browserNotifications } from "@/lib/browserNotifications";
 import { 
   Bell, 
   BellRing, 
@@ -17,7 +18,18 @@ import {
   FileText,
   User,
   Calendar,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Notification {
   id: string;
@@ -36,48 +48,9 @@ export default function Notifications() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const previousNotificationsRef = useRef<Notification[]>([]); // Track previous notifications to detect new ones
 
-  // Mock notifications data - in real app, this would come from API
-  const mockNotifications: Notification[] = [
-    {
-      id: '1',
-      title: 'New Report Submitted',
-      message: 'A new Air Safety Report has been submitted by Captain Smith',
-      type: 'info',
-      isRead: false,
-      createdAt: '2024-01-15T10:30:00Z',
-      userId: user?.id || '',
-    },
-    {
-      id: '2',
-      title: 'Report Status Updated',
-      message: 'Your ASR-2024-001 report status has been updated to "Under Review"',
-      type: 'success',
-      isRead: false,
-      createdAt: '2024-01-15T09:15:00Z',
-      userId: user?.id || '',
-    },
-    {
-      id: '3',
-      title: 'System Maintenance',
-      message: 'Scheduled maintenance will occur tonight from 2:00 AM to 4:00 AM',
-      type: 'warning',
-      isRead: true,
-      createdAt: '2024-01-14T16:45:00Z',
-      userId: user?.id || '',
-    },
-    {
-      id: '4',
-      title: 'Password Reset Required',
-      message: 'Your password will expire in 7 days. Please update it soon.',
-      type: 'error',
-      isRead: true,
-      createdAt: '2024-01-14T08:00:00Z',
-      userId: user?.id || '',
-    },
-  ];
-
-  // Real API call
+  // Real API call - use same query key as notification bell for synchronization
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     queryFn: async () => {
@@ -97,6 +70,9 @@ export default function Notifications() {
       
       return response.json();
     },
+    staleTime: 0, // Always refetch
+    refetchOnMount: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   // Mark as read mutation
@@ -120,6 +96,7 @@ export default function Notifications() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all notification queries to sync with notification bell
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
       toast({
@@ -150,6 +127,7 @@ export default function Notifications() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate all notification queries to sync with notification bell
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
       toast({
@@ -158,6 +136,47 @@ export default function Notifications() {
       });
     },
   });
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (browserNotifications.isSupported && browserNotifications.getPermission() === 'default') {
+      const requestPermission = async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          await browserNotifications.requestPermission();
+        }
+      };
+      
+      // Request permission after a short delay
+      const timer = setTimeout(requestPermission, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Monitor for new notifications and show browser notifications
+  useEffect(() => {
+    if (!browserNotifications.isAllowed() || !notifications.length) {
+      previousNotificationsRef.current = notifications;
+      return;
+    }
+
+    // Compare current notifications with previous to find new ones
+    if (previousNotificationsRef.current.length > 0) {
+      browserNotifications.showNotificationsForNewItems(
+        notifications,
+        previousNotificationsRef.current
+      );
+    }
+
+    // Update previous notifications
+    previousNotificationsRef.current = [...notifications];
+  }, [notifications]);
+
+  // Refetch notifications when page mounts to ensure fresh data and sync with bell
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+  }, [queryClient]);
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread') return !notification.isRead;
@@ -170,31 +189,31 @@ export default function Notifications() {
   const getNotificationIcon = (type: string, title: string) => {
     // Special icons for comment-related notifications
     if (title.toLowerCase().includes('comment') || title.toLowerCase().includes('discussion')) {
-      return <FileText className="h-5 w-5 text-purple-500" />;
+      return <FileText className="h-5 w-5 text-purple-500 dark:text-purple-400" />;
     }
     
     switch (type) {
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-destructive" />;
       case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+        return <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500" />;
       case 'success':
-        return <Check className="h-5 w-5 text-green-500" />;
+        return <Check className="h-5 w-5 text-green-600 dark:text-green-500" />;
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-primary" />;
     }
   };
 
   const getNotificationColor = (type: string) => {
     switch (type) {
       case 'error':
-        return 'border-red-200 bg-red-50';
+        return 'border-destructive/20 bg-destructive/10 dark:bg-destructive/20 dark:border-destructive/30';
       case 'warning':
-        return 'border-yellow-200 bg-yellow-50';
+        return 'border-yellow-500/20 bg-yellow-500/10 dark:bg-yellow-500/20 dark:border-yellow-500/30';
       case 'success':
-        return 'border-green-200 bg-green-50';
+        return 'border-green-500/20 bg-green-500/10 dark:bg-green-500/20 dark:border-green-500/30';
       default:
-        return 'border-blue-200 bg-blue-50';
+        return 'border-primary/20 bg-primary/10 dark:bg-primary/20 dark:border-primary/30';
     }
   };
 
@@ -208,6 +227,46 @@ export default function Notifications() {
     if (diffInHours < 48) return 'Yesterday';
     return date.toLocaleDateString();
   };
+
+  // Delete notification mutation
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete notification');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate all notification queries to sync with notification bell
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      setNotificationToDelete(null);
+      toast({
+        title: "Notification deleted",
+        description: "The notification has been deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete notification",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Smart routing function
   const handleNotificationClick = async (notification: Notification) => {
@@ -228,7 +287,7 @@ export default function Notifications() {
             },
           });
           
-          // Invalidate queries to refresh the UI
+          // Invalidate queries to refresh the UI and sync with notification bell
           queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
           queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
         }
@@ -393,12 +452,27 @@ export default function Notifications() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => markAsReadMutation.mutate(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsReadMutation.mutate(notification.id);
+                            }}
                             disabled={markAsReadMutation.isPending}
                           >
                             <Check className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNotificationToDelete(notification.id);
+                          }}
+                          disabled={deleteNotificationMutation.isPending}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -407,6 +481,31 @@ export default function Notifications() {
             ))
           )}
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!notificationToDelete} onOpenChange={(open) => !open && setNotificationToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Notification</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this notification? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (notificationToDelete) {
+                    deleteNotificationMutation.mutate(notificationToDelete);
+                  }
+                }}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

@@ -65,7 +65,7 @@ export default function Settings() {
         if (response.status === 404) {
           return {
             id: '',
-            companyName: 'Air Safety System',
+            companyName: 'Report Sys',
             email: '',
             phone: '',
             address: '',

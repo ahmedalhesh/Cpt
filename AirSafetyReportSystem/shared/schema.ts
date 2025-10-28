@@ -40,7 +40,7 @@ export type User = typeof users.$inferSelect;
 // Company settings table
 export const companySettings = sqliteTable("company_settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  companyName: text("company_name").notNull().default("Air Safety System"),
+  companyName: text("company_name").notNull().default("Report Sys"),
   logo: text("logo"),
   email: text("email"),
   phone: text("phone"),
@@ -60,7 +60,7 @@ export const notifications = sqliteTable("notifications", {
   message: text("message").notNull(),
   type: text("type").notNull().default("info"), // info, warning, error, success
   isRead: integer("is_read").notNull().default(0), // 0 = false, 1 = true
-  relatedReportId: text("related_report_id").references(() => reports.id, { onDelete: "cascade" }),
+  relatedReportId: text("related_report_id").references(() => reports.id, { onDelete: "set null" }), // Changed from cascade to set null - notifications should persist even if report is deleted
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
@@ -149,19 +149,68 @@ export type Report = typeof reports.$inferSelect;
 export type InsertReport = typeof reports.$inferInsert;
 
 export const insertReportSchema = createInsertSchema(reports, {
-  planGridX: (schema) => schema.min(0).optional(),
-  planGridY: (schema) => schema.min(0).optional(),
-  planDistanceX: (schema) => schema.optional(),
-  planDistanceY: (schema) => schema.optional(),
-  elevGridCol: (schema) => schema.min(0).optional(),
-  elevGridRow: (schema) => schema.min(0).optional(),
-  elevDistanceHorizM: (schema) => schema.optional(),
-  elevDistanceVertFt: (schema) => schema.optional(),
+  // Make ALL fields optional - using nullish() allows null, undefined, or value
+  reportType: (schema) => schema.nullish(),
+  status: (schema) => schema.nullish(),
+  submittedBy: (schema) => schema.nullish(), // Will be set by server from auth
+  isAnonymous: (schema) => schema.nullish(),
+  description: (schema) => schema.nullish(),
+  
+  // Numeric fields - remove min validation when making optional
+  planGridX: (schema) => schema.nullish(),
+  planGridY: (schema) => schema.nullish(),
+  planDistanceX: (schema) => schema.nullish(),
+  planDistanceY: (schema) => schema.nullish(),
+  elevGridCol: (schema) => schema.nullish(),
+  elevGridRow: (schema) => schema.nullish(),
+  elevDistanceHorizM: (schema) => schema.nullish(),
+  elevDistanceVertFt: (schema) => schema.nullish(),
+  
+  // Image fields
+  planImage: (schema) => schema.nullish(),
+  elevImage: (schema) => schema.nullish(),
+  
+  // Text fields - all optional
+  flightNumber: (schema) => schema.nullish(),
+  aircraftType: (schema) => schema.nullish(),
+  route: (schema) => schema.nullish(),
+  eventDateTime: (schema) => schema.nullish(),
+  contributingFactors: (schema) => schema.nullish(),
+  correctiveActions: (schema) => schema.nullish(),
+  location: (schema) => schema.nullish(),
+  phaseOfFlight: (schema) => schema.nullish(),
+  riskLevel: (schema) => schema.nullish(),
+  followUpActions: (schema) => schema.nullish(),
+  planUnits: (schema) => schema.nullish(),
+  extraData: (schema) => schema.nullish(),
+  
+  // RIR fields
+  groundCrewNames: (schema) => schema.nullish(),
+  vehicleInvolved: (schema) => schema.nullish(),
+  damageType: (schema) => schema.nullish(),
+  correctiveSteps: (schema) => schema.nullish(),
+  
+  // NCR fields
+  department: (schema) => schema.nullish(),
+  nonconformityType: (schema) => schema.nullish(),
+  rootCause: (schema) => schema.nullish(),
+  responsiblePerson: (schema) => schema.nullish(),
+  preventiveActions: (schema) => schema.nullish(),
+  
+  // CDF fields
+  discretionReason: (schema) => schema.nullish(),
+  timeExtension: (schema) => schema.nullish(),
+  crewFatigueDetails: (schema) => schema.nullish(),
+  finalDecision: (schema) => schema.nullish(),
+  
+  // CHR fields
+  potentialImpact: (schema) => schema.nullish(),
+  preventionSuggestions: (schema) => schema.nullish(),
 }).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}).passthrough(); // Allow extra fields that are not in the schema (will be ignored by drizzle)
 
 export type InsertReportData = z.infer<typeof insertReportSchema>;
 

@@ -12,11 +12,15 @@ declare module 'http' {
   }
 }
 app.use(express.json({
+  limit: '50mb', // Increased limit to handle large base64 images (ASR plots)
   verify: (req, _res, buf) => {
     req.rawBody = buf;
   }
 }));
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ 
+  extended: false,
+  limit: '50mb' // Increased limit for URL-encoded data
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();

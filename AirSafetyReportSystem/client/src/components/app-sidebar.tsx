@@ -100,7 +100,7 @@ export function AppSidebar() {
           <CompanyLogo size="md" />
           <div>
             <h2 className="text-sm font-semibold tracking-tight">
-              {companySettings?.companyName || "Air Safety"}
+              {companySettings?.companyName || "Report Sys"}
             </h2>
           </div>
         </div>

@@ -13,8 +13,8 @@ export function DynamicTitle() {
         titleElement.textContent = companyName;
         document.title = companyName;
       } else {
-        titleElement.textContent = 'Air Safety Report System';
-        document.title = 'Air Safety Report System';
+        titleElement.textContent = 'Report Sys';
+        document.title = 'Report Sys';
       }
     }
   }, [companySettings?.companyName]);

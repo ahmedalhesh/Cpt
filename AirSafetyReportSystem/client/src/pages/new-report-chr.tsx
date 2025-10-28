@@ -16,7 +16,7 @@ const schema = z.object({
   reportRef: z.string().optional(),
   isAnonymous: z.boolean().optional(),
 
-  hazardDescription: z.string().min(10, "يرجى وصف الخطر").optional(),
+  hazardDescription: z.string().optional(), // All fields are optional
   recommendations: z.string().optional(),
 
   reporterName: z.string().optional(),
@@ -131,7 +131,7 @@ export default function NewReportCHR() {
               <div>
                 <label className="text-sm font-medium">وصف مختصر لمصدر الخطر</label>
                 <Textarea rows={8} {...register('hazardDescription')} />
-                {errors.hazardDescription && <p className="text-xs text-red-500 mt-1">{errors.hazardDescription.message}</p>}
+                {errors.hazardDescription && <p className="text-xs text-destructive mt-1">{errors.hazardDescription.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">مقترحات وتوصيات للتصحيح (إن وجدت)</label>

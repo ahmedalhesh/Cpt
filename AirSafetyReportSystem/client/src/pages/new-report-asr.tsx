@@ -16,32 +16,32 @@ const schema = z.object({
   // Office use
   isReportable: z.enum(["yes", "no"]).optional(),
 
-  // 1. Type of event (multi)
-  eventTypes: z.array(z.string()).min(1, "Select at least one type"),
+  // 1. Type of event (multi) - all fields optional
+  eventTypes: z.array(z.string()).optional(),
 
   // Crew markers
   cm1: z.string().optional(),
   cm2: z.string().optional(),
   cm3: z.string().optional(),
 
-  // 3-4 Date/Time
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
+  // 3-4 Date/Time - all optional
+  date: z.string().optional(),
+  time: z.string().optional(),
   timeStandard: z.enum(["LOCAL", "UTC"]).default("UTC"),
   light: z.enum(["DAY", "NIGHT"]).optional(),
 
-  // 5-11 Flight basics
-  callsign: z.string().min(1, "Callsign is required"),
-  routeFrom: z.string().min(1, "From is required"),
-  routeTo: z.string().min(1, "To is required"),
+  // 5-11 Flight basics - all optional
+  callsign: z.string().optional(),
+  routeFrom: z.string().optional(),
+  routeTo: z.string().optional(),
   divertedTo: z.string().optional(),
-  aircraftType: z.string().min(1, "Aircraft type is required"),
+  aircraftType: z.string().optional(),
   registration: z.string().optional(),
   paxCrew: z.string().optional(),
   techLogPage: z.string().optional(),
 
-  // 12-21 Operation context
-  phaseOfFlight: z.string().min(1, "Phase is required"),
+  // 12-21 Operation context - all optional
+  phaseOfFlight: z.string().optional(),
   altitude: z.string().optional(),
   speedMach: z.string().optional(),
   fuelDumpKg: z.string().optional(),
@@ -62,8 +62,8 @@ const schema = z.object({
   cfgSlat: z.boolean().optional(),
   cfgSpoiler: z.boolean().optional(),
 
-  // 22-24 Narrative
-  eventSummary: z.string().min(10, "Provide a concise description"),
+  // 22-24 Narrative - all optional
+  eventSummary: z.string().optional(),
   actionTaken: z.string().optional(),
   otherInfo: z.string().optional(),
 
@@ -127,10 +127,10 @@ const schema = z.object({
   nrSeen5_11_100: z.boolean().optional(),
   nrSeen5_more: z.boolean().optional(),
 
-  // Sign-off
-  reporterName: z.string().min(1, "Reporter name is required"),
-  reporterRank: z.string().min(1, "Rank is required"),
-  reporterDate: z.string().min(1, "Date is required"),
+  // Sign-off - all optional
+  reporterName: z.string().optional(),
+  reporterRank: z.string().optional(),
+  reporterDate: z.string().optional(),
   signature: z.string().optional(),
 });
 
@@ -177,7 +177,12 @@ export default function NewReportASR() {
     if (data.isReportable) headerParts.push(`Reportable: ${data.isReportable}`);
     if (data.eventTypes?.length) headerParts.push(`Types: ${data.eventTypes.join(', ')}`);
     if (data.cm1 || data.cm2 || data.cm3) headerParts.push(`CM1: ${data.cm1 ?? ''} | CM2: ${data.cm2 ?? ''} | CM3: ${data.cm3 ?? ''}`);
-    if (data.light || data.timeStandard) headerParts.push(`Light: ${data.light ?? ''} | Standard: ${data.timeStandard}`);
+    if (data.light || data.timeStandard) {
+      const lightPart = data.light ? `Light: ${data.light}` : '';
+      const standardPart = data.timeStandard ? `Standard: ${data.timeStandard}` : '';
+      const parts = [lightPart, standardPart].filter(Boolean);
+      if (parts.length) headerParts.push(parts.join(' | '));
+    }
     if (data.divertedTo) headerParts.push(`DivertedTo: ${data.divertedTo}`);
     if (data.registration || data.paxCrew || data.techLogPage) headerParts.push(`Reg: ${data.registration ?? ''} | Pax/Crew: ${data.paxCrew ?? ''} | TechLog: ${data.techLogPage ?? ''}`);
     const headerLines = headerParts.join('\n');
@@ -188,7 +193,11 @@ export default function NewReportASR() {
     if (data.wxWind || data.wxVisibility || data.wxClouds || data.wxTemp || data.wxQnh) opsParts.push(`WX: Wind=${data.wxWind ?? ''} Vis/RVR=${data.wxVisibility ?? ''} Clouds=${data.wxClouds ?? ''} Temp=${data.wxTemp ?? ''}C QNH=${data.wxQnh ?? ''}`);
     if ((data.wxSignificant ?? []).length) opsParts.push(`SignificantWX: ${(data.wxSignificant ?? []).join(', ')}`);
     if (data.runwayDesignator || data.runwaySide || data.runwayCondition) opsParts.push(`Runway: ${data.runwayDesignator ?? ''}${data.runwaySide ? `/${data.runwaySide}` : ''} | Cond: ${data.runwayCondition ?? ''}`);
-    opsParts.push(`Config: AP=${data.cfgAutopilot ? 'ON' : 'OFF'} Gear=${data.cfgGear ? 'DOWN' : 'UP'} Flaps=${data.cfgFlaps ? 'SET' : 'UP'} Slat=${data.cfgSlat ? 'SET' : 'UP'} Spoiler=${data.cfgSpoiler ? 'EXT' : 'RET'}`);
+    // Only add Config line if at least one config field was explicitly set
+    if (data.cfgAutopilot !== undefined || data.cfgGear !== undefined || data.cfgFlaps !== undefined || 
+        data.cfgSlat !== undefined || data.cfgSpoiler !== undefined) {
+      opsParts.push(`Config: AP=${data.cfgAutopilot ? 'ON' : 'OFF'} Gear=${data.cfgGear ? 'DOWN' : 'UP'} Flaps=${data.cfgFlaps ? 'SET' : 'UP'} Slat=${data.cfgSlat ? 'SET' : 'UP'} Spoiler=${data.cfgSpoiler ? 'EXT' : 'RET'}`);
+    }
     const opsLines = opsParts.join('\n');
 
     // airproxPlanX/airproxPlanY represent grid offsets from center
@@ -250,7 +259,39 @@ export default function NewReportASR() {
     if (data.eventSummary) descriptionParts.push(`\nEVENT SUMMARY:\n${data.eventSummary}`);
     // Sections 26/27/28 are intentionally omitted from the description per request
     if (signOff) descriptionParts.push(`\nSIGN-OFF:\n${signOff}`);
-    const description = descriptionParts.join('\n');
+    const description = descriptionParts.join('\n') || ''; // All fields are optional, but description must be string (not null)
+
+    // Helper function to compress image
+    const compressImage = (dataUrl: string, maxWidth: number = 1200, quality: number = 0.8): Promise<string> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          
+          // Resize if too large
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Use JPEG compression instead of PNG for smaller file size
+            const compressed = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressed);
+          } else {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    };
 
     // Capture images for both plots (best-effort; skips if library not available)
     let planImage: string | undefined;
@@ -259,47 +300,62 @@ export default function NewReportASR() {
       const mod: any = await import(/* @vite-ignore */ 'html2canvas').catch(() => null);
       if (mod) {
         if (planRef.current) {
-          const canvas = await mod.default(planRef.current, { backgroundColor: '#ffffff', scale: 2 });
-          planImage = canvas.toDataURL('image/png');
+          const canvas = await mod.default(planRef.current, { backgroundColor: '#ffffff', scale: 1.5 });
+          const originalDataUrl = canvas.toDataURL('image/png');
+          planImage = await compressImage(originalDataUrl, 1200, 0.85);
         }
         if (elevRef.current) {
-          const canvas = await mod.default(elevRef.current, { backgroundColor: '#ffffff', scale: 2 });
-          elevImage = canvas.toDataURL('image/png');
+          const canvas = await mod.default(elevRef.current, { backgroundColor: '#ffffff', scale: 1.5 });
+          const originalDataUrl = canvas.toDataURL('image/png');
+          elevImage = await compressImage(originalDataUrl, 1200, 0.85);
         }
       }
     } catch (_) {
       // ignore capture errors
     }
 
-    const payload = {
-      reportType: 'asr',
-      description,
-      flightNumber: data.callsign,
-      aircraftType: data.aircraftType,
-      route: `${data.routeFrom} / ${data.routeTo}`,
-      eventDateTime: eventDateTimeIso,
-      phaseOfFlight: data.phaseOfFlight,
-      contributingFactors: data.eventTypes.join(', '),
-      correctiveActions: data.actionTaken ?? '',
-      preventionSuggestions: data.otherInfo ?? '',
-      followUpActions: '',
-      riskLevel: data.airproxSeverity ?? undefined,
+    // Helper to clean undefined/null values and ensure proper types
+    const cleanValue = (value: any, defaultVal?: any): any => {
+      if (value === null || value === undefined || value === '') return defaultVal;
+      return value;
+    };
 
-      // Extra explicit coordinates/distances (will be stripped by backend if unsupported)
-      planUnits,
-      planGridX,
-      planGridY,
+    const payload: Record<string, any> = {
+      reportType: 'asr',
+      description: description || '', // All fields are optional, but description must be string (not null)
+      flightNumber: cleanValue(data.callsign),
+      aircraftType: cleanValue(data.aircraftType),
+      route: cleanValue(`${data.routeFrom} / ${data.routeTo}`),
+      eventDateTime: cleanValue(eventDateTimeIso),
+      phaseOfFlight: cleanValue(data.phaseOfFlight),
+      contributingFactors: cleanValue(data.eventTypes?.join(', ')),
+      correctiveActions: cleanValue(data.actionTaken, ''),
+      preventionSuggestions: cleanValue(data.otherInfo),
+      followUpActions: '',
+      riskLevel: cleanValue(data.airproxSeverity),
+
+      // Extra explicit coordinates/distances
+      planUnits: cleanValue(planUnits),
+      planGridX: Number.isInteger(planGridX) ? planGridX : undefined,
+      planGridY: Number.isInteger(planGridY) ? planGridY : undefined,
       planDistanceX: Number.isFinite(planDistanceXNum) ? planDistanceXNum : undefined,
       planDistanceY: Number.isFinite(planDistanceYNum) ? planDistanceYNum : undefined,
-      elevGridCol: elevCol,
-      elevGridRow: elevRow,
+      elevGridCol: Number.isInteger(elevCol) ? elevCol : undefined,
+      elevGridRow: Number.isInteger(elevRow) ? elevRow : undefined,
       elevDistanceHorizM: Number.isFinite(elevDistanceHorizMNum) ? elevDistanceHorizMNum : undefined,
       elevDistanceVertFt: Number.isFinite(elevDistanceVertFtNum) ? elevDistanceVertFtNum : undefined,
 
-      // Images (base64 PNG)
-      planImage,
-      elevImage,
-    } as any;
+      // Images (base64 JPEG or PNG)
+      planImage: cleanValue(planImage),
+      elevImage: cleanValue(elevImage),
+    };
+
+    // Remove undefined values to reduce payload size
+    Object.keys(payload).forEach(key => {
+      if (payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
 
     try {
       const token = localStorage.getItem('token');
@@ -316,7 +372,11 @@ export default function NewReportASR() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Failed to create report');
+        const errorMessage = err.message || 'Failed to create report';
+        const validationErrors = err.errors 
+          ? `\nValidation errors: ${JSON.stringify(err.errors, null, 2)}`
+          : '';
+        throw new Error(errorMessage + validationErrors);
       }
 
       const created = await res.json();
@@ -400,7 +460,7 @@ export default function NewReportASR() {
                   </label>
                 ))}
               </div>
-              {errors.eventTypes && <p className="text-xs text-red-500 mt-1">{errors.eventTypes.message as string}</p>}
+              {errors.eventTypes && <p className="text-xs text-destructive mt-1">{errors.eventTypes.message as string}</p>}
             </div>
           </Card>
 
@@ -409,12 +469,12 @@ export default function NewReportASR() {
               <div>
                 <label className="text-sm font-medium">Date</label>
                 <Input type="date" {...register('date')} />
-                {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date.message}</p>}
+                {errors.date && <p className="text-xs text-destructive mt-1">{errors.date.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Time</label>
                 <Input type="time" {...register('time')} />
-                {errors.time && <p className="text-xs text-red-500 mt-1">{errors.time.message}</p>}
+                {errors.time && <p className="text-xs text-destructive mt-1">{errors.time.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Standard</label>
@@ -442,7 +502,7 @@ export default function NewReportASR() {
               <div>
                 <label className="text-sm font-medium">Callsign</label>
                 <Input {...register('callsign')} />
-                {errors.callsign && <p className="text-xs text-red-500 mt-1">{errors.callsign.message}</p>}
+                {errors.callsign && <p className="text-xs text-destructive mt-1">{errors.callsign.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">From</label>
@@ -500,7 +560,7 @@ export default function NewReportASR() {
                     <SelectItem value="TAXY IN">TAXY IN</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.phaseOfFlight && <p className="text-xs text-red-500 mt-1">{errors.phaseOfFlight.message}</p>}
+                {errors.phaseOfFlight && <p className="text-xs text-destructive mt-1">{errors.phaseOfFlight.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Altitude (ft)</label>
@@ -606,7 +666,7 @@ export default function NewReportASR() {
             <div>
               <label className="text-sm font-medium">Event Summary</label>
               <Textarea rows={5} {...register('eventSummary')} />
-              {errors.eventSummary && <p className="text-xs text-red-500 mt-1">{errors.eventSummary.message}</p>}
+              {errors.eventSummary && <p className="text-xs text-destructive mt-1">{errors.eventSummary.message}</p>}
             </div>
             <div>
               <label className="text-sm font-medium">Action Taken / Results / Subsequent Events</label>
@@ -725,7 +785,7 @@ export default function NewReportASR() {
                             calc((100%/${COLS - 1}) * 5) calc((100%/${ROWS - 1}) * 5),
                             calc((100%/${COLS - 1}) * 5) calc((100%/${ROWS - 1}) * 5)
                           `,
-                          backgroundColor: 'white'
+                          backgroundColor: 'hsl(var(--background))'
                         }}
                         onClick={(e) => {
                           const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -742,7 +802,7 @@ export default function NewReportASR() {
                         {/* Selected point */}
                         {leftPct !== undefined && topPct !== undefined && (
                           <div
-                            className="absolute w-3 h-3 bg-blue-600 rounded-full border border-white"
+                            className="absolute w-3 h-3 bg-primary rounded-full border border-background"
                             style={{ left: `${leftPct}%`, top: `${topPct}%`, transform: 'translate(-50%, -50%)' }}
                           />
                         )}
@@ -848,7 +908,7 @@ export default function NewReportASR() {
                           calc((100%/${COLS - 1}) * 5) calc((100%/${ROWS - 1}) * 5),
                           calc((100%/${COLS - 1}) * 5) calc((100%/${ROWS - 1}) * 5)
                         `,
-                        backgroundColor: 'white'
+                        backgroundColor: 'hsl(var(--background))'
                       }}
                       onClick={(e) => {
                         const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -885,8 +945,7 @@ export default function NewReportASR() {
                           }}
                         />
                       )}
-                      {/* Double center dots */}
-                      <div className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-[65%] w-2 h-2 bg-primary rounded-full" />
+                      {/* Center dot */}
                       <div className="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-[35%] w-2 h-2 bg-primary rounded-full" />
                       {/* Top numeric scale (10..0..10) outside */}
                       <div className="absolute top-0 -translate-y-full left-0 right-0 flex justify-between text-[10px] text-muted-foreground px-1 py-0 pointer-events-none">

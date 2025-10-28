@@ -1,4 +1,3 @@
-import { Shield } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePublicCompanySettings } from "@/hooks/usePublicCompanySettings";
 
@@ -15,13 +14,6 @@ export function CompanyLogo({ size = 'md', className = '', showText = false }: C
   // Use authenticated settings if available, otherwise use public settings
   const settings = companySettings || publicCompanySettings;
 
-  const sizeClasses = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
-    xl: 'h-12 w-12',
-  };
-
   const textSizeClasses = {
     sm: 'text-xs',
     md: 'text-sm',
@@ -35,14 +27,12 @@ export function CompanyLogo({ size = 'md', className = '', showText = false }: C
         <img 
           src={settings.logo} 
           alt="Company Logo" 
-          className={`${sizeClasses[size]} object-contain`}
+          className={`h-6 w-6 object-contain`}
         />
-      ) : (
-        <Shield className={`${sizeClasses[size]} text-primary`} />
-      )}
+      ) : null}
       {showText && (
         <span className={`font-semibold ${textSizeClasses[size]}`}>
-          {settings?.companyName || "Air Safety"}
+          {settings?.companyName || "Report Sys"}
         </span>
       )}
     </div>

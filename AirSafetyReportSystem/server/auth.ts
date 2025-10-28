@@ -203,10 +203,18 @@ export function setupAuth(app: any) {
         return res.status(400).json({ message: 'Email and password are required' });
       }
 
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
+      // Check if user already exists by email
+      const existingUserByEmail = await storage.getUserByEmail(email);
+      if (existingUserByEmail) {
+        return res.status(400).json({ message: 'User with this email already exists' });
+      }
+
+      // Check if user already exists by name (firstName + lastName)
+      if (firstName && lastName) {
+        const existingUserByName = await storage.getUserByName(firstName, lastName);
+        if (existingUserByName) {
+          return res.status(400).json({ message: 'User with this name already exists' });
+        }
       }
 
       const hashedPassword = await hashPassword(password);
@@ -279,6 +287,22 @@ export function setupAuth(app: any) {
     try {
       const { id } = req.params;
       const { firstName, lastName, role, email } = req.body;
+
+      // Check if email is being changed and if it already exists
+      if (email) {
+        const existingUserByEmail = await storage.getUserByEmail(email);
+        if (existingUserByEmail && existingUserByEmail.id !== id) {
+          return res.status(400).json({ message: 'User with this email already exists' });
+        }
+      }
+
+      // Check if name is being changed and if it already exists
+      if (firstName && lastName) {
+        const existingUserByName = await storage.getUserByName(firstName, lastName);
+        if (existingUserByName && existingUserByName.id !== id) {
+          return res.status(400).json({ message: 'User with this name already exists' });
+        }
+      }
 
       const user = await storage.updateUser(id, {
         firstName,

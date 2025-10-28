@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Link } from "wouter";
 import { Search, Calendar, Eye, FileText, Clock, CheckCircle2, AlertTriangle, Filter, User as UserIcon, CalendarDays, SortAsc, SortDesc, Plus, XCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -20,6 +22,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { StatCard } from "@/components/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { Report, User } from "@shared/schema";
 
 type ReportWithUser = Report & {
@@ -33,6 +36,7 @@ export default function ReportsList() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [sortBy, setSortBy] = useState<string>("newest");
   const [submittedByFilter, setSubmittedByFilter] = useState<string>("all");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -88,6 +92,19 @@ export default function ReportsList() {
       }
     }
     
+    // Specific date filter (from calendar)
+    if (selectedDate) {
+      const reportDate = new Date(report.createdAt || 0);
+      const selectedDateOnly = new Date(selectedDate);
+      selectedDateOnly.setHours(0, 0, 0, 0);
+      const reportDateOnly = new Date(reportDate);
+      reportDateOnly.setHours(0, 0, 0, 0);
+      
+      if (reportDateOnly.getTime() !== selectedDateOnly.getTime()) {
+        return false;
+      }
+    }
+    
     // Submitted By filter (admin only)
     if (user?.role === 'admin' && submittedByFilter !== 'all') {
       const role = report.submitter?.role || '';
@@ -118,15 +135,7 @@ export default function ReportsList() {
       const bOrder = statusOrder[b.status as keyof typeof statusOrder] || 5;
       return aOrder - bOrder;
     } else {
-      // Default: newest first with status priority
-      const statusOrder = { submitted: 1, in_review: 2, closed: 3, rejected: 4 };
-      const aOrder = statusOrder[a.status as keyof typeof statusOrder] || 5;
-      const bOrder = statusOrder[b.status as keyof typeof statusOrder] || 5;
-      
-      if (aOrder !== bOrder) {
-        return aOrder - bOrder;
-      }
-      
+      // Default: newest first (by creation date only)
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     }
   });
@@ -350,7 +359,12 @@ export default function ReportsList() {
                     <CalendarDays className="h-4 w-4" />
                     Date Range
                   </label>
-                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <Select value={dateFilter} onValueChange={(value) => {
+                    setDateFilter(value);
+                    if (value !== 'all') {
+                      setSelectedDate(undefined);
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="All Time" />
                     </SelectTrigger>
@@ -362,6 +376,54 @@ export default function ReportsList() {
                       <SelectItem value="year">Last Year</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Select Specific Date
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          if (date) {
+                            setDateFilter("all");
+                          }
+                        }}
+                        initialFocus
+                      />
+                      {selectedDate && (
+                        <div className="p-3 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              setSelectedDate(undefined);
+                            }}
+                          >
+                            Clear Date
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 
                 {user?.role === 'admin' && (

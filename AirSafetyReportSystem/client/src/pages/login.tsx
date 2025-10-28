@@ -17,7 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Shield, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { usePublicCompanySettings } from "@/hooks/usePublicCompanySettings";
 import { CompanyLogo } from "@/components/company-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -93,7 +93,7 @@ export default function Login() {
             <CompanyLogo size="xl" className="scale-[2.5]" />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            {companySettings?.companyName || "Air Safety"}
+            {companySettings?.companyName || "Report Sys"}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Sign in to your account

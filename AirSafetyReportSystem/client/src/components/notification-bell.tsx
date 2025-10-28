@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { browserNotifications } from "@/lib/browserNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +12,17 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Bell, BellRing, Check, AlertCircle, Info, AlertTriangle, FileText, Calendar } from "lucide-react";
+import { Bell, BellRing, Check, AlertCircle, Info, AlertTriangle, FileText, Calendar, Trash2, X } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Notification {
   id: string;
@@ -28,15 +39,19 @@ export function NotificationBell() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const previousNotificationsRef = useRef<Notification[]>([]); // Track previous notifications to detect new ones
+  const permissionRequestedRef = useRef(false); // Track if we've already requested permission
 
-  // Real notifications data
-  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
-    queryKey: ["/api/notifications/recent"],
+  // Real notifications data - use same query key as notifications page for synchronization
+  const { data: allNotifications = [], isLoading } = useQuery<Notification[]>({
+    queryKey: ["/api/notifications"],
     queryFn: async () => {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('No token found');
       
-      const response = await fetch('/api/notifications?isRead=false', {
+      const response = await fetch('/api/notifications', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -47,16 +62,41 @@ export function NotificationBell() {
         throw new Error('Failed to fetch notifications');
       }
       
-      const data = await response.json();
-      return data.slice(0, 5); // Only show first 5 unread notifications
+      return response.json();
     },
     staleTime: 0, // Always consider data stale
     refetchOnMount: true, // Always refetch on mount
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  const recentNotifications = notifications.slice(0, 5);
+  // Get unread count separately for better accuracy
+  const { data: unreadCountData = 0 } = useQuery<number>({
+    queryKey: ["/api/notifications/unread-count"],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      
+      const response = await fetch('/api/notifications/unread-count', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch unread count');
+      }
+      
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  // Filter and prepare notifications for display
+  const unreadCount = typeof unreadCountData === 'number' ? unreadCountData : allNotifications.filter(n => !n.isRead).length;
+  const recentNotifications = allNotifications.slice(0, 10); // Show first 10 notifications in dropdown
 
   const getNotificationIcon = (type: string, title: string) => {
     // Special icons for comment-related notifications
@@ -106,10 +146,9 @@ export function NotificationBell() {
             },
           });
           
-          // Invalidate queries to refresh the UI
+          // Invalidate queries to refresh the UI and sync with notifications page
           queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
           queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/notifications/recent"] });
         }
       } catch (error) {
         console.error('❌ [BELL] Error marking notification as read:', error);
@@ -156,6 +195,195 @@ export function NotificationBell() {
     }
   };
 
+  // Mark notification as read mutation
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark notification as read');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate all notification queries to sync with notifications page
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    },
+  });
+
+  // Delete notification mutation
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete notification');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate all notification queries to sync with notifications page
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      setNotificationToDelete(null);
+      toast({
+        title: "Notification deleted",
+        description: "The notification has been deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete notification",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete all notifications mutation
+  const deleteAllNotificationsMutation = useMutation({
+    mutationFn: async () => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No token found');
+      
+      const response = await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete all notifications');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate all notification queries to sync with notifications page
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+      setShowDeleteAllDialog(false);
+      toast({
+        title: "All notifications deleted",
+        description: "All notifications have been deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete all notifications",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (!permissionRequestedRef.current && browserNotifications.isSupported) {
+      permissionRequestedRef.current = true;
+      
+      // Request permission after a short delay to ensure user is authenticated
+      const requestPermission = async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const deviceInfo = browserNotifications.getDeviceInfo();
+          const supportMessage = browserNotifications.getSupportMessage();
+          
+          // Show device-specific message if needed
+          if (supportMessage) {
+            console.info('🔔', supportMessage);
+            toast({
+              title: "إشعارات المتصفح",
+              description: supportMessage,
+              duration: 5000,
+            });
+          }
+          
+          const granted = await browserNotifications.requestPermission();
+          if (granted) {
+            console.log('🔔 Browser notifications permission granted');
+            toast({
+              title: "تم تفعيل إشعارات المتصفح",
+              description: deviceInfo.isMobile 
+                ? "ستتلقى إشعارات حتى عندما تكون التطبيق في الخلفية"
+                : "ستتلقى إشعارات حتى عندما يكون التبويب غير نشط",
+            });
+          } else if (!supportMessage) {
+            // Only show message if there's no specific support message
+            toast({
+              title: "إشعارات المتصفح",
+              description: "لم يتم منح الإذن. يمكنك تفعيله لاحقاً من إعدادات المتصفح",
+              variant: "default",
+              duration: 3000,
+            });
+          }
+        }
+      };
+      
+      // Request permission after 2 seconds (once user is settled)
+      const timer = setTimeout(requestPermission, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Monitor for new notifications and show browser notifications
+  useEffect(() => {
+    if (!browserNotifications.isAllowed() || !allNotifications.length) {
+      previousNotificationsRef.current = allNotifications;
+      return;
+    }
+
+    // Compare current notifications with previous to find new ones
+    if (previousNotificationsRef.current.length > 0) {
+      browserNotifications.showNotificationsForNewItems(
+        allNotifications,
+        previousNotificationsRef.current
+      );
+    }
+
+    // Update previous notifications
+    previousNotificationsRef.current = [...allNotifications];
+  }, [allNotifications]);
+
+  // Refetch notifications when dropdown opens to ensure fresh data
+  useEffect(() => {
+    if (isOpen) {
+      // Invalidate all notification queries to sync with notifications page
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+    }
+  }, [isOpen, queryClient]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      browserNotifications.clearTrackedNotifications();
+    };
+  }, []);
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
@@ -178,11 +406,28 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between p-3 border-b">
           <h3 className="font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {unreadCount} new
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {unreadCount} new
+              </Badge>
+            )}
+            {allNotifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteAllDialog(true);
+                }}
+                disabled={deleteAllNotificationsMutation.isPending}
+                className="h-6 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete All
+              </Button>
+            )}
+          </div>
         </div>
         
         {isLoading ? (
@@ -201,11 +446,15 @@ export function NotificationBell() {
               <DropdownMenuItem 
                 key={notification.id} 
                 className="p-0"
-                onClick={() => handleNotificationClick(notification)}
+                onSelect={(e) => {
+                  e.preventDefault();
+                }}
               >
                 <div className={`flex items-start gap-3 p-3 hover:bg-muted/50 cursor-pointer w-full ${
                   !notification.isRead ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''
-                }`}>
+                }`}
+                onClick={() => handleNotificationClick(notification)}
+                >
                   <div className="flex-shrink-0 mt-1">
                     {getNotificationIcon(notification.type, notification.title)}
                   </div>
@@ -220,14 +469,90 @@ export function NotificationBell() {
                       {formatTime(notification.createdAt)}
                     </p>
                   </div>
-                  {!notification.isRead && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
-                  )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {!notification.isRead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsReadMutation.mutate(notification.id);
+                        }}
+                        disabled={markAsReadMutation.isPending}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setNotificationToDelete(notification.id);
+                      }}
+                      disabled={deleteNotificationMutation.isPending}
+                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                    {!notification.isRead && (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                    )}
+                  </div>
                 </div>
               </DropdownMenuItem>
             ))}
           </div>
         )}
+        
+        {/* Delete notification confirmation dialog */}
+        <AlertDialog open={!!notificationToDelete} onOpenChange={(open) => !open && setNotificationToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Notification</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this notification? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (notificationToDelete) {
+                    deleteNotificationMutation.mutate(notificationToDelete);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete all notifications confirmation dialog */}
+        <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete All Notifications</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete all notifications? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  deleteAllNotificationsMutation.mutate();
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

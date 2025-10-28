@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Shield, FileText, Users, BarChart3, Lock, Clock } from "lucide-react";
+import { FileText, Users, BarChart3, Lock, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { usePublicCompanySettings } from "@/hooks/usePublicCompanySettings";
 
@@ -13,9 +13,8 @@ export default function Landing() {
       <header className="border-b">
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
             <span className="text-xl font-semibold tracking-tight">
-              {companySettings?.companyName || "Air Safety Report System"}
+              {companySettings?.companyName || "Report Sys"}
             </span>
           </div>
           <Button asChild data-testid="button-login">
@@ -103,7 +102,7 @@ export default function Landing() {
           </Card>
 
           <Card className="p-6">
-            <Shield className="h-10 w-10 text-primary mb-4" />
+            <BarChart3 className="h-10 w-10 text-primary mb-4" />
             <h3 className="text-xl font-semibold mb-3">Compliance Ready</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Meet aviation safety regulations with comprehensive audit trails, 
@@ -133,8 +132,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="text-sm text-muted-foreground">Air Safety Report System</span>
+              <span className="text-sm text-muted-foreground">Report Sys</span>
             </div>
             <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} All rights reserved.

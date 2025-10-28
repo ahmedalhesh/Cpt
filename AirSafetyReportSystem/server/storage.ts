@@ -27,6 +27,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByName(firstName: string, lastName: string): Promise<User | undefined>;
   createUser(user: UpsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserPassword(id: string, password: string): Promise<void>;
@@ -59,6 +60,16 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByName(firstName: string, lastName: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(
+        eq(users.firstName, firstName),
+        eq(users.lastName, lastName)
+      )
+    );
     return user;
   }
 
@@ -181,8 +192,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(comments.reportId, id))
       .orderBy(comments.createdAt);
 
+    // Parse extraData from JSON string to object if it exists
+    let parsedExtraData = null;
+    if (report.extraData && typeof report.extraData === 'string') {
+      try {
+        parsedExtraData = JSON.parse(report.extraData);
+      } catch (e) {
+        // If parsing fails, keep it as is (might be plain text)
+        parsedExtraData = report.extraData;
+      }
+    } else if (report.extraData) {
+      parsedExtraData = report.extraData;
+    }
+
     return {
       ...report,
+      extraData: parsedExtraData,
       submitter: submitter || {} as User,
       comments: reportComments.map(rc => ({
         ...rc.comment,
@@ -192,27 +217,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserReports(userId: string, filters?: { type?: string; status?: string }): Promise<(Report & { submitter: User })[]> {
-    let query = db
+    // Build conditions array
+    const conditions: any[] = [eq(reports.submittedBy, userId)];
+    
+    if (filters?.type && filters.type !== 'all') {
+      conditions.push(eq(reports.reportType, filters.type));
+    }
+
+    if (filters?.status && filters.status !== 'all') {
+      conditions.push(eq(reports.status, filters.status));
+    }
+
+    const query = db
       .select({
         report: reports,
         submitter: users,
       })
       .from(reports)
       .leftJoin(users, eq(reports.submittedBy, users.id))
-      .where(eq(reports.submittedBy, userId));
-
-    if (filters?.type && filters.type !== 'all') {
-      query = query.where(eq(reports.reportType, filters.type));
-    }
-
-    if (filters?.status && filters.status !== 'all') {
-      query = query.where(eq(reports.status, filters.status));
-    }
+      .where(and(...conditions));
 
     const results = await query.orderBy(desc(reports.createdAt));
     
+    // Helper function to parse extraData from JSON string
+    const parseExtraData = (extraData: any) => {
+      if (!extraData) return null;
+      if (typeof extraData === 'string') {
+        try {
+          return JSON.parse(extraData);
+        } catch (e) {
+          return extraData; // Keep as is if parsing fails
+        }
+      }
+      return extraData;
+    };
+    
     return results.map(r => ({
       ...r.report,
+      extraData: parseExtraData(r.report.extraData),
       submitter: r.submitter || {} as User,
     }));
   }
@@ -243,8 +285,22 @@ export class DatabaseStorage implements IStorage {
 
     const results = await query;
 
+    // Helper function to parse extraData from JSON string
+    const parseExtraData = (extraData: any) => {
+      if (!extraData) return null;
+      if (typeof extraData === 'string') {
+        try {
+          return JSON.parse(extraData);
+        } catch (e) {
+          return extraData; // Keep as is if parsing fails
+        }
+      }
+      return extraData;
+    };
+
     return results.map(r => ({
       ...r.report,
+      extraData: parseExtraData(r.report.extraData),
       submitter: r.submitter || {} as User,
     }));
   }
@@ -422,24 +478,57 @@ export class DatabaseStorage implements IStorage {
 
   // Notification operations
   async createNotification(notificationData: UpsertNotification): Promise<Notification> {
-    const [notification] = await db
-      .insert(notifications)
-      .values(notificationData)
-      .returning();
-    return notification;
+    console.log('📝 [CREATE NOTIFICATION] Creating notification:', {
+      userId: notificationData.userId,
+      title: notificationData.title,
+      type: notificationData.type,
+      hasRelatedReport: !!notificationData.relatedReportId
+    });
+    
+    try {
+      const [notification] = await db
+        .insert(notifications)
+        .values(notificationData)
+        .returning();
+      
+      console.log('✅ [CREATE NOTIFICATION] Notification created successfully:', {
+        id: notification.id,
+        userId: notification.userId,
+        title: notification.title
+      });
+      
+      return notification;
+    } catch (error: any) {
+      console.error('❌ [CREATE NOTIFICATION] Failed to create notification:', error);
+      console.error('❌ [CREATE NOTIFICATION] Error details:', {
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
+      });
+      throw error;
+    }
   }
 
   async getNotifications(userId: string, filters?: { isRead?: boolean }): Promise<Notification[]> {
-    let query = db
-      .select()
-      .from(notifications)
-      .where(eq(notifications.userId, userId));
+    // Build conditions array
+    const conditions: any[] = [eq(notifications.userId, userId)];
 
     if (filters?.isRead !== undefined) {
-      query = query.where(eq(notifications.isRead, filters.isRead ? 1 : 0));
+      conditions.push(eq(notifications.isRead, filters.isRead ? 1 : 0));
     }
 
-    return await query.orderBy(desc(notifications.createdAt));
+    const query = db
+      .select()
+      .from(notifications)
+      .where(and(...conditions)) as any;
+
+    const results = await query.orderBy(desc(notifications.createdAt));
+    
+    // Convert isRead from integer (0/1) to boolean for client
+    return results.map((n: any) => ({
+      ...n,
+      isRead: n.isRead === 1,
+    })) as Notification[];
   }
 
   async getUnreadNotificationCount(userId: string): Promise<number> {
@@ -459,7 +548,15 @@ export class DatabaseStorage implements IStorage {
       .set({ isRead: 1, updatedAt: new Date().toISOString() })
       .where(eq(notifications.id, notificationId))
       .returning();
-    return notification;
+    
+    if (!notification) return undefined;
+    
+    // Convert isRead from integer (0/1) to boolean
+    const notificationWithBool = notification as any;
+    return {
+      ...notificationWithBool,
+      isRead: notificationWithBool.isRead === 1,
+    } as Notification;
   }
 
   async markAllNotificationsAsRead(userId: string): Promise<void> {
@@ -473,31 +570,85 @@ export class DatabaseStorage implements IStorage {
     await db.delete(notifications).where(eq(notifications.id, notificationId));
   }
 
+  async deleteAllNotifications(userId: string): Promise<void> {
+    await db.delete(notifications).where(eq(notifications.userId, userId));
+  }
+
   // Auto-notification functions
   async createReportSubmittedNotification(reportId: string, submittedBy: string): Promise<void> {
-    console.log(`🔔 [NOTIFICATIONS] Creating new report notification for report ${reportId.slice(0, 5).toUpperCase()}`);
-    console.log(`🔔 [NOTIFICATIONS] Submitted by: ${submittedBy}`);
+    console.log('🔔 [REPORT NOTIFICATION] ========== START ==========');
+    console.log(`🔔 [REPORT NOTIFICATION] Report ID: ${reportId}`);
+    console.log(`🔔 [REPORT NOTIFICATION] Report ID (short): ${reportId.slice(0, 5).toUpperCase()}`);
+    console.log(`🔔 [REPORT NOTIFICATION] Submitted by user ID: ${submittedBy}`);
     
-    // Get all admin users
-    const adminUsers = await db.select().from(users).where(eq(users.role, 'admin'));
-    
-    console.log(`📊 [NOTIFICATIONS] Found ${adminUsers.length} admin users`);
-    
-    for (const admin of adminUsers) {
-      // Only notify admins who are not the submitter
-      if (admin.id !== submittedBy) {
-        console.log(`📤 [NOTIFICATIONS] Notifying admin: ${admin.email}`);
-        await this.createNotification({
-          userId: admin.id,
-          title: 'New Report Submitted',
-          message: `A new ${reportId.slice(0, 5).toUpperCase()} report has been submitted and requires review.`,
-          type: 'info',
-          isRead: 0,
-          relatedReportId: reportId,
+    try {
+      // Get all admin users
+      console.log('🔔 [REPORT NOTIFICATION] Querying database for admin users...');
+      const adminUsers = await db.select().from(users).where(eq(users.role, 'admin'));
+      
+      console.log(`📊 [REPORT NOTIFICATION] Database query completed`);
+      console.log(`📊 [REPORT NOTIFICATION] Found ${adminUsers.length} admin user(s) in database`);
+      
+      if (adminUsers.length > 0) {
+        console.log('📊 [REPORT NOTIFICATION] Admin users details:');
+        adminUsers.forEach((admin, index) => {
+          console.log(`  ${index + 1}. ${admin.email} (${admin.id}) - Role: ${admin.role}`);
         });
-      } else {
-        console.log(`⏭️ [NOTIFICATIONS] Skipping admin notification (admin submitted the report)`);
       }
+      
+      if (adminUsers.length === 0) {
+        console.log(`⚠️ [REPORT NOTIFICATION] ❌ NO ADMIN USERS FOUND IN DATABASE!`);
+        console.log(`⚠️ [REPORT NOTIFICATION] This means notifications will NOT be created.`);
+        console.log(`⚠️ [REPORT NOTIFICATION] Please ensure at least one user has role='admin' in the database.`);
+        return;
+      }
+      
+      let notificationsCreated = 0;
+      let skippedCount = 0;
+      
+      for (const admin of adminUsers) {
+        console.log(`\n🔔 [REPORT NOTIFICATION] Processing admin: ${admin.email}`);
+        console.log(`🔔 [REPORT NOTIFICATION] Admin ID: ${admin.id}`);
+        console.log(`🔔 [REPORT NOTIFICATION] Submitter ID: ${submittedBy}`);
+        console.log(`🔔 [REPORT NOTIFICATION] Admin is submitter? ${admin.id === submittedBy}`);
+        
+        // Only notify admins who are not the submitter
+        if (admin.id !== submittedBy) {
+          try {
+            console.log(`📤 [REPORT NOTIFICATION] ✅ Admin is NOT the submitter, creating notification...`);
+            const notification = await this.createNotification({
+              userId: admin.id,
+              title: 'New Report Submitted',
+              message: `A new ${reportId.slice(0, 5).toUpperCase()} report has been submitted and requires review.`,
+              type: 'info',
+              isRead: 0,
+              relatedReportId: reportId,
+            });
+            
+            notificationsCreated++;
+            console.log(`✅ [REPORT NOTIFICATION] ✅ Notification #${notificationsCreated} created successfully`);
+            console.log(`✅ [REPORT NOTIFICATION] Notification ID: ${notification.id}`);
+          } catch (error: any) {
+            console.error(`❌ [REPORT NOTIFICATION] ❌ FAILED to create notification for admin ${admin.email}`);
+            console.error(`❌ [REPORT NOTIFICATION] Error:`, error?.message);
+            console.error(`❌ [REPORT NOTIFICATION] Stack:`, error?.stack);
+          }
+        } else {
+          skippedCount++;
+          console.log(`⏭️ [REPORT NOTIFICATION] ⏭️ Skipping admin (admin submitted the report)`);
+        }
+      }
+      
+      console.log(`\n🔔 [REPORT NOTIFICATION] ========== SUMMARY ==========`);
+      console.log(`📊 [REPORT NOTIFICATION] Total admins found: ${adminUsers.length}`);
+      console.log(`✅ [REPORT NOTIFICATION] Notifications created: ${notificationsCreated}`);
+      console.log(`⏭️ [REPORT NOTIFICATION] Admins skipped: ${skippedCount}`);
+      console.log(`🔔 [REPORT NOTIFICATION] ========== END ==========\n`);
+    } catch (error: any) {
+      console.error(`❌ [REPORT NOTIFICATION] ❌ CRITICAL ERROR in createReportSubmittedNotification`);
+      console.error(`❌ [REPORT NOTIFICATION] Error message:`, error?.message);
+      console.error(`❌ [REPORT NOTIFICATION] Error stack:`, error?.stack);
+      throw error;
     }
   }
 
@@ -521,57 +672,124 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCommentAddedNotification(reportId: string, commenterId: string, commentText: string): Promise<void> {
-    // Get the report to find the submitter
-    const report = await this.getReport(reportId);
-    if (!report) return;
+    console.log('💬 [COMMENT NOTIFICATION] ========== START ==========');
+    console.log(`💬 [COMMENT NOTIFICATION] Report ID: ${reportId}`);
+    console.log(`💬 [COMMENT NOTIFICATION] Commenter ID: ${commenterId}`);
+    console.log(`💬 [COMMENT NOTIFICATION] Comment preview: ${commentText?.substring(0, 50)}`);
+    
+    try {
+      // Get the report to find the submitter
+      console.log('💬 [COMMENT NOTIFICATION] Fetching report from database...');
+      const report = await this.getReport(reportId);
+      if (!report) {
+        console.log(`❌ [COMMENT NOTIFICATION] ❌ Report not found: ${reportId}`);
+        return;
+      }
+      console.log(`✅ [COMMENT NOTIFICATION] Report found. Submitter: ${report.submittedBy}`);
 
-    // Get commenter info
-    const commenter = await this.getUser(commenterId);
-    if (!commenter) return;
+      // Get commenter info
+      console.log('💬 [COMMENT NOTIFICATION] Fetching commenter from database...');
+      const commenter = await this.getUser(commenterId);
+      if (!commenter) {
+        console.log(`❌ [COMMENT NOTIFICATION] ❌ Commenter not found: ${commenterId}`);
+        return;
+      }
+      console.log(`✅ [COMMENT NOTIFICATION] Commenter found: ${commenter.firstName} ${commenter.lastName} (Role: ${commenter.role})`);
 
-    console.log(`🔔 [NOTIFICATIONS] Creating comment notification for report ${reportId.slice(0, 5).toUpperCase()}`);
-    console.log(`🔔 [NOTIFICATIONS] Commenter: ${commenter.firstName} ${commenter.lastName} (${commenter.role})`);
-    console.log(`🔔 [NOTIFICATIONS] Report submitter: ${report.submittedBy}`);
+      let notificationsCreated = 0;
 
-    // Only notify the report submitter if they're not the one commenting
-    if (report.submittedBy !== commenterId) {
-      console.log(`📤 [NOTIFICATIONS] Notifying report submitter: ${report.submittedBy}`);
-      await this.createNotification({
-        userId: report.submittedBy,
-        title: 'New Comment Added',
-        message: `${commenter.firstName} ${commenter.lastName} added a comment on your report: "${commentText.slice(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
-        type: 'info',
-        isRead: 0,
-        relatedReportId: reportId,
-      });
-    } else {
-      console.log(`⏭️ [NOTIFICATIONS] Skipping notification for report submitter (they commented on their own report)`);
-    }
-
-    // Only notify admins if:
-    // 1. The commenter is not an admin (to avoid self-notification)
-    // 2. The admin is not the report submitter (already notified above)
-    if (commenter.role !== 'admin') {
-      console.log(`📤 [NOTIFICATIONS] Commenter is not admin, notifying admins...`);
-      const adminUsers = await db.select().from(users).where(eq(users.role, 'admin'));
+      // Only notify the report submitter if they're not the one commenting
+      console.log(`\n💬 [COMMENT NOTIFICATION] Checking if submitter should be notified...`);
+      console.log(`💬 [COMMENT NOTIFICATION] Report submitter ID: ${report.submittedBy}`);
+      console.log(`💬 [COMMENT NOTIFICATION] Commenter ID: ${commenterId}`);
+      console.log(`💬 [COMMENT NOTIFICATION] Same person? ${report.submittedBy === commenterId}`);
       
-      for (const admin of adminUsers) {
-        if (admin.id !== report.submittedBy) {
-          console.log(`📤 [NOTIFICATIONS] Notifying admin: ${admin.email}`);
-          await this.createNotification({
-            userId: admin.id,
-            title: 'New Comment on Report',
-            message: `${commenter.firstName} ${commenter.lastName} commented on report ${reportId.slice(0, 5).toUpperCase()}: "${commentText.slice(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
+      if (report.submittedBy !== commenterId) {
+        try {
+          console.log(`📤 [COMMENT NOTIFICATION] ✅ Submitter is NOT the commenter, creating notification...`);
+          const notification = await this.createNotification({
+            userId: report.submittedBy,
+            title: 'New Comment Added',
+            message: `${commenter.firstName} ${commenter.lastName} added a comment on your report: "${commentText.slice(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
             type: 'info',
             isRead: 0,
             relatedReportId: reportId,
           });
-        } else {
-          console.log(`⏭️ [NOTIFICATIONS] Skipping admin notification (admin is the report submitter)`);
+          notificationsCreated++;
+          console.log(`✅ [COMMENT NOTIFICATION] ✅ Notification #${notificationsCreated} created for submitter`);
+          console.log(`✅ [COMMENT NOTIFICATION] Notification ID: ${notification.id}`);
+        } catch (error: any) {
+          console.error(`❌ [COMMENT NOTIFICATION] ❌ FAILED to create notification for submitter`);
+          console.error(`❌ [COMMENT NOTIFICATION] Error:`, error?.message);
+          console.error(`❌ [COMMENT NOTIFICATION] Stack:`, error?.stack);
         }
+      } else {
+        console.log(`⏭️ [COMMENT NOTIFICATION] ⏭️ Skipping submitter notification (they commented on their own report)`);
       }
-    } else {
-      console.log(`⏭️ [NOTIFICATIONS] Commenter is admin, skipping admin notifications`);
+
+      // Only notify admins if commenter is not admin
+      console.log(`\n💬 [COMMENT NOTIFICATION] Checking if admins should be notified...`);
+      console.log(`💬 [COMMENT NOTIFICATION] Commenter role: ${commenter.role}`);
+      console.log(`💬 [COMMENT NOTIFICATION] Commenter is admin? ${commenter.role === 'admin'}`);
+      
+      if (commenter.role !== 'admin') {
+        console.log(`📤 [COMMENT NOTIFICATION] ✅ Commenter is NOT admin, querying admin users...`);
+        const adminUsers = await db.select().from(users).where(eq(users.role, 'admin'));
+        
+        console.log(`📊 [COMMENT NOTIFICATION] Found ${adminUsers.length} admin user(s) in database`);
+        
+        if (adminUsers.length > 0) {
+          console.log('📊 [COMMENT NOTIFICATION] Admin users details:');
+          adminUsers.forEach((admin, index) => {
+            console.log(`  ${index + 1}. ${admin.email} (${admin.id}) - Role: ${admin.role}`);
+          });
+        }
+        
+        if (adminUsers.length === 0) {
+          console.log(`⚠️ [COMMENT NOTIFICATION] ❌ NO ADMIN USERS FOUND IN DATABASE!`);
+        }
+        
+        for (const admin of adminUsers) {
+          console.log(`\n💬 [COMMENT NOTIFICATION] Processing admin: ${admin.email}`);
+          console.log(`💬 [COMMENT NOTIFICATION] Admin ID: ${admin.id}`);
+          console.log(`💬 [COMMENT NOTIFICATION] Report submitter ID: ${report.submittedBy}`);
+          console.log(`💬 [COMMENT NOTIFICATION] Admin is submitter? ${admin.id === report.submittedBy}`);
+          
+          if (admin.id !== report.submittedBy) {
+            try {
+              console.log(`📤 [COMMENT NOTIFICATION] ✅ Admin is NOT the submitter, creating notification...`);
+              const notification = await this.createNotification({
+                userId: admin.id,
+                title: 'New Comment on Report',
+                message: `${commenter.firstName} ${commenter.lastName} commented on report ${reportId.slice(0, 5).toUpperCase()}: "${commentText.slice(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
+                type: 'info',
+                isRead: 0,
+                relatedReportId: reportId,
+              });
+              notificationsCreated++;
+              console.log(`✅ [COMMENT NOTIFICATION] ✅ Notification #${notificationsCreated} created for admin: ${admin.email}`);
+              console.log(`✅ [COMMENT NOTIFICATION] Notification ID: ${notification.id}`);
+            } catch (error: any) {
+              console.error(`❌ [COMMENT NOTIFICATION] ❌ FAILED to create notification for admin ${admin.email}`);
+              console.error(`❌ [COMMENT NOTIFICATION] Error:`, error?.message);
+              console.error(`❌ [COMMENT NOTIFICATION] Stack:`, error?.stack);
+            }
+          } else {
+            console.log(`⏭️ [COMMENT NOTIFICATION] ⏭️ Skipping admin notification (admin is the report submitter)`);
+          }
+        }
+      } else {
+        console.log(`⏭️ [COMMENT NOTIFICATION] ⏭️ Skipping admin notifications (commenter is admin)`);
+      }
+      
+      console.log(`\n💬 [COMMENT NOTIFICATION] ========== SUMMARY ==========`);
+      console.log(`✅ [COMMENT NOTIFICATION] Total notifications created: ${notificationsCreated}`);
+      console.log(`💬 [COMMENT NOTIFICATION] ========== END ==========\n`);
+    } catch (error: any) {
+      console.error(`❌ [COMMENT NOTIFICATION] ❌ CRITICAL ERROR in createCommentAddedNotification`);
+      console.error(`❌ [COMMENT NOTIFICATION] Error message:`, error?.message);
+      console.error(`❌ [COMMENT NOTIFICATION] Error stack:`, error?.stack);
+      throw error;
     }
   }
 }

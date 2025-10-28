@@ -42,6 +42,8 @@ export default function UsersManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [userToDelete, setUserToDelete] = useState<User | null>(null);
+	const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+	const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
 
   // Fetch users
   const { data: users, isLoading } = useQuery<User[]>({
@@ -310,10 +312,8 @@ export default function UsersManagement() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        const newPassword = prompt('Enter new password:');
-                        if (newPassword) {
-                          resetPasswordMutation.mutate({ id: user.id, newPassword });
-                        }
+                        setUserToResetPassword(user);
+                        setIsResetPasswordDialogOpen(true);
                       }}
                     >
                       <Key className="h-4 w-4" />
@@ -377,6 +377,25 @@ export default function UsersManagement() {
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+
+		{/* Reset Password Dialog */}
+		<Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Reset Password</DialogTitle>
+				</DialogHeader>
+				{userToResetPassword && (
+					<ResetPasswordForm 
+						user={userToResetPassword}
+						onSubmit={(newPassword) => {
+							resetPasswordMutation.mutate({ id: userToResetPassword.id, newPassword });
+							setIsResetPasswordDialogOpen(false);
+							setUserToResetPassword(null);
+						}}
+					/>
+				)}
+			</DialogContent>
+		</Dialog>
       </div>
     </div>
   );
@@ -391,10 +410,41 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
     lastName: '',
     role: 'captain',
   });
+  const [emailError, setEmailError] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Clear previous errors
+    setEmailError('');
+    setNameError('');
+    
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      return;
+    }
+    
     onSubmit(formData);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value;
+    setFormData({ ...formData, email });
+    
+    // Clear email error when user starts typing
+    if (emailError) {
+      setEmailError('');
+    }
+  };
+
+  const handleNameChange = (field: 'firstName' | 'lastName', value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Clear name error when user starts typing
+    if (nameError) {
+      setNameError('');
+    }
   };
 
   return (
@@ -405,10 +455,12 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
           id="email"
           type="email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={handleEmailChange}
           required
           autoComplete="email"
+          className={emailError ? 'border-red-500' : ''}
         />
+        {emailError && <p className="text-sm text-red-500 mt-1">{emailError}</p>}
       </div>
       <div>
         <Label htmlFor="password">Password</Label>
@@ -427,8 +479,9 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
           <Input
             id="firstName"
             value={formData.firstName}
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+            onChange={(e) => handleNameChange('firstName', e.target.value)}
             autoComplete="given-name"
+            className={nameError ? 'border-red-500' : ''}
           />
         </div>
         <div>
@@ -436,10 +489,12 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
           <Input
             id="lastName"
             value={formData.lastName}
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+            onChange={(e) => handleNameChange('lastName', e.target.value)}
             autoComplete="family-name"
+            className={nameError ? 'border-red-500' : ''}
           />
         </div>
+        {nameError && <p className="text-sm text-red-500 mt-1 col-span-2">{nameError}</p>}
       </div>
       <div>
         <Label htmlFor="role">Role</Label>
@@ -520,6 +575,107 @@ function EditUserForm({ user, onSubmit }: { user: User; onSubmit: (data: any) =>
       </div>
       <div className="flex justify-end gap-2">
         <Button type="submit">Update User</Button>
+      </div>
+    </form>
+  );
+}
+
+// Reset Password Form Component
+function ResetPasswordForm({ user, onSubmit }: { user: User; onSubmit: (newPassword: string) => void }) {
+  const [formData, setFormData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [errors, setErrors] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Clear previous errors
+    setErrors({ newPassword: '', confirmPassword: '' });
+    
+    // Validation
+    if (!formData.newPassword) {
+      setErrors(prev => ({ ...prev, newPassword: 'Password is required' }));
+      return;
+    }
+    
+    if (formData.newPassword.length < 6) {
+      setErrors(prev => ({ ...prev, newPassword: 'Password must be at least 6 characters' }));
+      return;
+    }
+    
+    if (formData.newPassword !== formData.confirmPassword) {
+      setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+      return;
+    }
+    
+    onSubmit(formData.newPassword);
+  };
+
+  const handlePasswordChange = (field: 'newPassword' | 'confirmPassword', value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Clear errors when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 bg-blue-50 rounded-md">
+        <p className="text-sm text-blue-800">
+          <strong>User:</strong> {user.firstName && user.lastName 
+            ? `${user.firstName} ${user.lastName}` 
+            : user.email}
+        </p>
+        <p className="text-sm text-blue-700">
+          <strong>Email:</strong> {user.email}
+        </p>
+      </div>
+      
+      <div>
+        <Label htmlFor="newPassword">New Password</Label>
+        <Input
+          id="newPassword"
+          type="password"
+          value={formData.newPassword}
+          onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+          required
+          autoComplete="new-password"
+          className={errors.newPassword ? 'border-red-500' : ''}
+          placeholder="Enter new password"
+        />
+        {errors.newPassword && <p className="text-sm text-red-500 mt-1">{errors.newPassword}</p>}
+      </div>
+      
+      <div>
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          value={formData.confirmPassword}
+          onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+          required
+          autoComplete="new-password"
+          className={errors.confirmPassword ? 'border-red-500' : ''}
+          placeholder="Confirm new password"
+        />
+        {errors.confirmPassword && <p className="text-sm text-red-500 mt-1">{errors.confirmPassword}</p>}
+      </div>
+      
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => {
+          setFormData({ newPassword: '', confirmPassword: '' });
+          setErrors({ newPassword: '', confirmPassword: '' });
+        }}>
+          Clear
+        </Button>
+        <Button type="submit">Reset Password</Button>
       </div>
     </form>
   );

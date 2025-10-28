@@ -138,24 +138,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/reports", isAuthenticated, async (req: any, res) => {
+    console.log('🚀 [REPORT CREATE] ========== NEW REPORT CREATION STARTED ==========');
+    console.log('🚀 [REPORT CREATE] User ID:', req.user?.id);
+    console.log('🚀 [REPORT CREATE] User role:', req.user?.role);
+    
     try {
       const userId = req.user.id;
       
-      // Validate the request body
-      const validatedData = insertReportSchema.parse({
-        ...req.body,
-        submittedBy: userId,
-      });
-
-      const report = await storage.createReport(validatedData);
+      // Prepare data with defaults - all fields are optional now
+      // First spread req.body, then apply defaults only for missing fields
+      const reportData = {
+        ...req.body, // All provided values first
+        reportType: req.body.reportType ?? "asr", // Default only if null/undefined
+        status: req.body.status ?? "submitted",
+        isAnonymous: req.body.isAnonymous ?? 0,
+        description: req.body.description ?? '', // Use empty string instead of null (database requires notNull)
+        submittedBy: userId, // Always override with auth user
+      };
       
+      console.log('🚀 [REPORT CREATE] Report data prepared:', {
+        reportType: reportData.reportType,
+        status: reportData.status,
+        submittedBy: reportData.submittedBy
+      });
+      
+      // Convert extraData to JSON string if it's an object (database stores it as text)
+      if (reportData.extraData && typeof reportData.extraData === 'object') {
+        reportData.extraData = JSON.stringify(reportData.extraData);
+      }
+      
+      // Validate the request body (all fields are optional in schema with nullish)
+      const validatedData = insertReportSchema.parse(reportData);
+      console.log('✅ [REPORT CREATE] Validation passed');
+
+      // Ensure required fields are not null/undefined (database requires notNull)
+      const reportDataForInsert = {
+        ...validatedData,
+        reportType: validatedData.reportType ?? "asr",
+        status: validatedData.status ?? "submitted",
+        description: validatedData.description ?? '',
+        submittedBy: validatedData.submittedBy ?? userId,
+        isAnonymous: validatedData.isAnonymous ?? 0,
+      } as typeof validatedData & { 
+        reportType: string; 
+        status: string; 
+        description: string; 
+        submittedBy: string;
+        isAnonymous: number;
+      };
+
+      const report = await storage.createReport(reportDataForInsert);
+      console.log('✅ [REPORT CREATE] Report created in database:', {
+        id: report.id,
+        status: report.status,
+        reportType: report.reportType
+      });
+      
+      // Create notification for admins when a new report is submitted
+      console.log('🔔 [REPORT CREATE] Checking if notification should be created...');
+      console.log('🔔 [REPORT CREATE] Report status:', report.status);
+      console.log('🔔 [REPORT CREATE] Status check (=== "submitted"):', report.status === 'submitted');
+      
+      if (report.status === 'submitted') {
+        console.log('🔔 [REPORT CREATE] ✅ Status is "submitted", creating notifications...');
+        console.log('🔔 [REPORT CREATE] Calling createReportSubmittedNotification...');
+        console.log('🔔 [REPORT CREATE] Report ID:', report.id);
+        console.log('🔔 [REPORT CREATE] User ID:', userId);
+        
+        // Use await to ensure it runs and we can catch errors immediately
+        try {
+          await storage.createReportSubmittedNotification(report.id, userId);
+          console.log('✅ [REPORT CREATE] Notifications created successfully');
+        } catch (notificationError: any) {
+          console.error('❌ [REPORT CREATE] ERROR creating notifications:', notificationError);
+          console.error('❌ [REPORT CREATE] Error stack:', notificationError?.stack);
+          // Don't fail the request if notifications fail
+        }
+      } else {
+        console.log('⏭️ [REPORT CREATE] Skipping notification (status is not "submitted"):', report.status);
+      }
+      
+      console.log('✅ [REPORT CREATE] ========== REPORT CREATION COMPLETED ==========');
       res.status(201).json(report);
     } catch (error: any) {
       console.error("Error creating report:", error);
       if (error.name === 'ZodError') {
-        return res.status(400).json({ message: "Invalid report data", errors: error.errors });
+        console.error("Validation errors:", JSON.stringify(error.errors, null, 2));
+        console.error("Received data keys:", Object.keys(req.body || {}));
+        const reportDataForError = {
+          reportType: req.body?.reportType ?? "asr",
+          status: req.body?.status ?? "submitted",
+        };
+        console.error("Prepared data keys:", Object.keys(reportDataForError || {}));
+        return res.status(400).json({ 
+          message: "Invalid report data", 
+          errors: error.errors,
+          receivedData: {
+            reportType: req.body?.reportType,
+            hasPlanImage: !!req.body?.planImage,
+            hasElevImage: !!req.body?.elevImage,
+            planImageLength: req.body?.planImage?.length || 0,
+            elevImageLength: req.body?.elevImage?.length || 0,
+            keys: Object.keys(req.body || {}),
+          }
+        });
       }
-      res.status(500).json({ message: "Failed to create report" });
+      res.status(500).json({ message: error?.message || "Failed to create report" });
     }
   });
 
@@ -208,6 +296,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: report?.updatedAt
       });
 
+      // Create notification for report submitter when status changes
+      if (report) {
+        await storage.createReportStatusUpdatedNotification(report.id, report.submittedBy, status);
+      }
       
       console.log(`📤 [SERVER] Sending response to client...`);
       res.json(report);
@@ -234,6 +326,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/comments", isAuthenticated, async (req: any, res) => {
+    console.log('💬 [COMMENT CREATE] ========== NEW COMMENT CREATION STARTED ==========');
+    console.log('💬 [COMMENT CREATE] User ID:', req.user?.id);
+    console.log('💬 [COMMENT CREATE] Report ID:', req.body?.reportId);
+    console.log('💬 [COMMENT CREATE] Comment content length:', req.body?.content?.length);
+    
     try {
       const userId = req.user.id;
       
@@ -243,7 +340,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const comment = await storage.createComment(validatedData);
+      console.log('✅ [COMMENT CREATE] Comment created in database:', {
+        id: comment.id,
+        reportId: comment.reportId,
+        userId: comment.userId
+      });
       
+      // Create notification when comment is added
+      console.log('🔔 [COMMENT CREATE] Checking if notification should be created...');
+      console.log('🔔 [COMMENT CREATE] Comment exists:', !!comment);
+      console.log('🔔 [COMMENT CREATE] Report ID exists:', !!req.body.reportId);
+      
+      if (comment && req.body.reportId) {
+        console.log('🔔 [COMMENT CREATE] ✅ Conditions met, creating notifications...');
+        console.log('🔔 [COMMENT CREATE] Calling createCommentAddedNotification...');
+        console.log('🔔 [COMMENT CREATE] Report ID:', req.body.reportId);
+        console.log('🔔 [COMMENT CREATE] User ID:', userId);
+        console.log('🔔 [COMMENT CREATE] Comment content preview:', comment.content?.substring(0, 50));
+        
+        // Use await to ensure it runs and we can catch errors immediately
+        try {
+          await storage.createCommentAddedNotification(
+            req.body.reportId,
+            userId,
+            comment.content
+          );
+          console.log('✅ [COMMENT CREATE] Notifications created successfully');
+        } catch (notificationError: any) {
+          console.error('❌ [COMMENT CREATE] ERROR creating notifications:', notificationError);
+          console.error('❌ [COMMENT CREATE] Error stack:', notificationError?.stack);
+          // Don't fail the request if notifications fail
+        }
+      } else {
+        console.log('⏭️ [COMMENT CREATE] Skipping notification:', {
+          commentExists: !!comment,
+          reportIdExists: !!req.body.reportId
+        });
+      }
+      
+      console.log('✅ [COMMENT CREATE] ========== COMMENT CREATION COMPLETED ==========');
       res.status(201).json(comment);
     } catch (error: any) {
       console.error("Error creating comment:", error);
@@ -369,11 +504,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/notifications/:id", isAuthenticated, async (req: any, res) => {
     try {
       const notificationId = req.params.id;
+      const userId = req.user.id;
+      
+      // Verify that the notification belongs to the user before deleting
+      const notifications = await storage.getNotifications(userId);
+      const notification = notifications.find(n => n.id === notificationId);
+      
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found or access denied" });
+      }
+      
       await storage.deleteNotification(notificationId);
       res.json({ message: "Notification deleted" });
     } catch (error) {
       console.error("Error deleting notification:", error);
       res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
+  app.delete("/api/notifications", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      await storage.deleteAllNotifications(userId);
+      res.json({ message: "All notifications deleted" });
+    } catch (error) {
+      console.error("Error deleting all notifications:", error);
+      res.status(500).json({ message: "Failed to delete all notifications" });
     }
   });
 

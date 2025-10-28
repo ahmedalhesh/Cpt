@@ -42,7 +42,7 @@ const schema = z.object({
       localPlanned: z.string().optional(),
       utcActual: z.string().optional(),
       localActual: z.string().optional(),
-      label: z.string(),
+      label: z.string().optional(),
     })
   ).optional(),
 

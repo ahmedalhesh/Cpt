@@ -1,5 +1,5 @@
 /**
- * Login API endpoint for Cloudflare Pages Functions
+ * /api/auth/login - Login endpoint using SQLite
  */
 
 import { Database } from 'sql.js';

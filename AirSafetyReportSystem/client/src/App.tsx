@@ -27,7 +27,9 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
-import React from "react";
+import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
+import React, { useState } from "react";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -73,6 +75,7 @@ class ErrorBoundary extends React.Component<
 
 function AppContent() {
   const { user, isLoading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -104,12 +107,22 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          <AppSidebar />
-          <main className="flex-1 lg:ml-64">
+          <div className={`transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0'} overflow-hidden`}>
+            <AppSidebar />
+          </div>
+          <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : 'ml-0'}`}>
             {/* Top Header Bar */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between px-4">
                 <div className="flex items-center space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    className="mr-2"
+                  >
+                    {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                  </Button>
                   <h1 className="text-lg font-semibold text-foreground">Report System</h1>
                 </div>
                 <div className="flex items-center space-x-4">

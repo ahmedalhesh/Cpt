@@ -1,0 +1,15 @@
+# Cloudflare Pages Configuration
+name = "report-sys"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding for Pages Functions
+[[d1_databases]]
+binding = "reportDB"
+database_name = "reportDB"
+database_id = "6b920600-39c2-4b2b-a8d5-fbf79cdfbd1a"
+
+# Environment variables
+[env.production.vars]
+NODE_ENV = "production"
+JWT_SECRET = "your-secret-key-change-this-in-production"
+JWT_EXPIRES_IN = "7d"

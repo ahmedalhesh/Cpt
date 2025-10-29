@@ -2,9 +2,7 @@
  * Get current user API endpoint
  */
 
-import type { PagesFunction } from '@cloudflare/workers-types';
-
-export const onRequestGet: PagesFunction = async ({ request, env }) => {
+export const onRequestGet = async ({ request, env }: { request: Request; env: any }) => {
   try {
     const authHeader = request.headers.get('Authorization');
     

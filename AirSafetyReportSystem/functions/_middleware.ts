@@ -3,9 +3,7 @@
  * Handles Express.js compatibility on Cloudflare Pages
  */
 
-import type { PagesFunction } from '@cloudflare/workers-types';
-
-export const onRequest: PagesFunction = async ({ request, env, waitUntil, next }) => {
+export const onRequest = async ({ request, env, waitUntil, next }: { request: Request; env: any; waitUntil: any; next: any }) => {
   // Handle CORS
   if (request.method === 'OPTIONS') {
     return new Response(null, {

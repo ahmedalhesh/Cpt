@@ -2,9 +2,7 @@
  * API Routes Middleware for Cloudflare Pages Functions
  */
 
-import type { PagesFunction } from '@cloudflare/workers-types';
-
-export const onRequest: PagesFunction = async ({ request, env, waitUntil, next }) => {
+export const onRequest = async ({ request, env, waitUntil, next }: { request: Request; env: any; waitUntil: any; next: any }) => {
   // Add CORS headers
   const response = await next();
   

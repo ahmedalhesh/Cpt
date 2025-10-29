@@ -2,9 +2,7 @@
  * Login API endpoint for Cloudflare Pages Functions
  */
 
-import type { PagesFunction } from '@cloudflare/workers-types';
-
-export const onRequestPost: PagesFunction = async ({ request, env }) => {
+export const onRequestPost = async ({ request, env }: { request: Request; env: any }) => {
   try {
     const { email, password } = await request.json();
     

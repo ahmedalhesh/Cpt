@@ -2,9 +2,7 @@
  * Health check endpoint
  */
 
-import type { PagesFunction } from '@cloudflare/workers-types';
-
-export const onRequestGet: PagesFunction = async ({ env }) => {
+export const onRequestGet = async ({ env }: { env: any }) => {
   return new Response(JSON.stringify({
     status: 'ok',
     timestamp: new Date().toISOString(),

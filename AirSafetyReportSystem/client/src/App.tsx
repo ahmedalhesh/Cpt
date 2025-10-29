@@ -107,9 +107,8 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          {/* Sidebar - Always visible on desktop, overlay on mobile */}
+          {/* Sidebar - Toggleable on all devices */}
           <div className={`
-            ${sidebarOpen ? 'block' : 'hidden lg:block'}
             fixed lg:relative z-40 h-full
             transition-all duration-300 ease-in-out
             w-64
@@ -120,7 +119,7 @@ function AppContent() {
             </div>
           </div>
           
-          {/* Overlay for mobile when sidebar is open */}
+          {/* Overlay for mobile and tablet when sidebar is open */}
           {sidebarOpen && (
             <div 
               className="fixed inset-0 z-30 bg-black/50 lg:hidden"
@@ -128,7 +127,7 @@ function AppContent() {
             />
           )}
           
-          <main className="flex-1 min-w-0">
+          <main className={`flex-1 min-w-0 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : 'lg:ml-0'}`}>
             {/* Top Header Bar - Responsive */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="flex h-12 sm:h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
@@ -141,6 +140,7 @@ function AppContent() {
                       setSidebarOpen(!sidebarOpen);
                     }}
                     className="mr-1 sm:mr-2 flex-shrink-0"
+                    title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
                   >
                     {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                   </Button>

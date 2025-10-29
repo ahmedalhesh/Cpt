@@ -2231,7 +2231,7 @@ export default function ReportDetail() {
                   placeholder="Add a comment or follow-up..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                      className="mb-3"
+                  className="mb-3"
                   rows={3}
                   data-testid="textarea-comment"
                 />
@@ -2273,8 +2273,8 @@ export default function ReportDetail() {
                 </div>
               ) : (
                     <div className="pl-2 text-center py-8">
-                      <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                      <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment.</p>
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment.</p>
                 </div>
               )}
                 </div>

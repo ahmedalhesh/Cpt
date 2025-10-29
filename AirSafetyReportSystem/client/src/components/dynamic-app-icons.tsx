@@ -17,7 +17,7 @@ export function DynamicAppIcons() {
       link.rel = rel;
       
       try {
-        if (companySettings.logo.startsWith('data:')) {
+        if (companySettings?.logo && companySettings.logo.startsWith('data:')) {
           // For base64 images, create icon directly
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
@@ -49,7 +49,8 @@ export function DynamicAppIcons() {
               link.href = iconDataUrl;
               
               if (sizes.length > 1) {
-                link.sizes = sizes.map(s => `${s}x${s}`).join(' ');
+                const sizesAttr = sizes.map(s => `${s}x${s}`).join(' ');
+                link.setAttribute('sizes', sizesAttr);
               }
               
               document.head.appendChild(link);
@@ -58,7 +59,7 @@ export function DynamicAppIcons() {
           img.onerror = () => {
             console.warn(`Failed to load company logo for ${rel} icon`);
           };
-          img.src = companySettings.logo;
+          img.src = companySettings?.logo || '';
         }
       } catch (error) {
         console.error(`Error updating ${rel} icon:`, error);

@@ -13,6 +13,8 @@ data.db
 # Build output
 dist/
 build/
+worker-build/
+.wrangler/
 
 # IDE
 .vscode/

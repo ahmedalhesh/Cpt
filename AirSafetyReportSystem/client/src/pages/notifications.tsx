@@ -139,7 +139,7 @@ export default function Notifications() {
 
   // Request browser notification permission on mount
   useEffect(() => {
-    if (browserNotifications.isSupported && browserNotifications.getPermission() === 'default') {
+    if (browserNotifications.isSupported() && browserNotifications.getPermission() === 'default') {
       const requestPermission = async () => {
         const token = localStorage.getItem('token');
         if (token) {

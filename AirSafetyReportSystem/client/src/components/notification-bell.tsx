@@ -302,7 +302,7 @@ export function NotificationBell() {
 
   // Request browser notification permission on mount
   useEffect(() => {
-    if (!permissionRequestedRef.current && browserNotifications.isSupported) {
+    if (!permissionRequestedRef.current && browserNotifications.isSupported()) {
       permissionRequestedRef.current = true;
       
       // Request permission after a short delay to ensure user is authenticated

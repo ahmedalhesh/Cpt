@@ -14,7 +14,7 @@ interface NotificationData {
 
 class BrowserNotificationService {
   private permission: NotificationPermission = 'default';
-  private isSupported: boolean;
+  private _isSupported: boolean;
   private notificationIds: Set<string> = new Set(); // Track shown notifications to avoid duplicates
   private deviceInfo: {
     isIOS: boolean;
@@ -24,12 +24,12 @@ class BrowserNotificationService {
   };
 
   constructor() {
-    this.isSupported = 'Notification' in window;
+    this._isSupported = 'Notification' in window;
     
     // Detect device and browser information
     this.deviceInfo = this.detectDevice();
     
-    if (this.isSupported) {
+    if (this._isSupported) {
       this.permission = Notification.permission;
     }
   }
@@ -82,7 +82,7 @@ class BrowserNotificationService {
   isFullySupported(): boolean {
     // Android: Fully supported
     if (this.deviceInfo.isAndroid) {
-      return this.isSupported;
+      return this._isSupported;
     }
     
     // iOS Safari: Limited support (only PWA, iOS 16.4+)
@@ -93,16 +93,16 @@ class BrowserNotificationService {
       
       // iOS 16.4+ supports web push for PWAs
       // For now, we'll return false for Safari on iOS to show message
-      return isPWA && this.isSupported;
+      return isPWA && this._isSupported;
     }
     
     // iOS Chrome: Supported
     if (this.deviceInfo.isIOS && this.deviceInfo.browser === 'Chrome') {
-      return this.isSupported;
+      return this._isSupported;
     }
     
     // Desktop and other browsers: Supported
-    return this.isSupported;
+    return this._isSupported;
   }
 
   /**
@@ -129,10 +129,17 @@ class BrowserNotificationService {
   }
 
   /**
+   * Check if notifications are supported
+   */
+  isSupported(): boolean {
+    return this._isSupported;
+  }
+
+  /**
    * Request permission from the user to show browser notifications
    */
   async requestPermission(): Promise<boolean> {
-    if (!this.isSupported) {
+    if (!this._isSupported) {
       console.warn('🔔 Browser notifications are not supported in this browser');
       return false;
     }
@@ -175,7 +182,7 @@ class BrowserNotificationService {
    * Check if notifications are supported and allowed
    */
   isAllowed(): boolean {
-    return this.isSupported && this.permission === 'granted';
+    return this._isSupported && this.permission === 'granted';
   }
 
   /**

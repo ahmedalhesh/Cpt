@@ -23,7 +23,7 @@
 
 ### Backend
 - Node.js + Express
-- PostgreSQL + Drizzle ORM
+- SQLite + Drizzle ORM (better-sqlite3)
 - JWT Authentication
 - bcryptjs (Password Hashing)
 - Multer (File Upload)
@@ -48,7 +48,7 @@ npm install --save-dev @types/jsonwebtoken @types/bcryptjs
 cp .env.example .env
 
 # تحديث متغيرات البيئة
-DATABASE_URL=postgresql://username:password@localhost:5432/airsafety
+DATABASE_URL=./database.sqlite
 JWT_SECRET=your-secret-key-change-in-production
 JWT_EXPIRES_IN=7d
 ```

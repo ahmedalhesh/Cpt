@@ -101,9 +101,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: status as string,
           })
         : await storage.getUserReports(userId, {
-            type: type as string,
-            status: status as string,
-          });
+        type: type as string,
+        status: status as string,
+      });
       
       res.json(reports);
     } catch (error) {

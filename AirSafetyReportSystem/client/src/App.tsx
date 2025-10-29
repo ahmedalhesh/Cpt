@@ -26,6 +26,7 @@ import NotFound from "@/pages/not-found";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 import React from "react";
 
 // Error Boundary Component
@@ -105,14 +106,20 @@ function AppContent() {
         <div className="flex">
           <AppSidebar />
           <main className="flex-1 lg:ml-64">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-foreground">Report System</h1>
+            {/* Top Header Bar */}
+            <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="container flex h-14 items-center justify-between px-4">
+                <div className="flex items-center space-x-2">
+                  <h1 className="text-lg font-semibold text-foreground">Report System</h1>
+                </div>
                 <div className="flex items-center space-x-4">
                   <ThemeToggle />
+                  <NotificationBell />
                 </div>
               </div>
-              
+            </header>
+            
+            <div className="p-6">
               <Router>
                 <Switch>
                   <Route path="/" component={Dashboard} />

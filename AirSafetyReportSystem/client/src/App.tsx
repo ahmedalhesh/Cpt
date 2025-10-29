@@ -75,7 +75,7 @@ class ErrorBoundary extends React.Component<
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -107,15 +107,16 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          {/* Sidebar - Always visible on desktop, toggleable on mobile/tablet */}
+          {/* Sidebar - Fixed positioning for all devices */}
           <div className={`
-            ${sidebarOpen ? 'block' : 'hidden lg:block'}
-            fixed lg:relative z-40 h-full
-            transition-all duration-300 ease-in-out
+            fixed top-0 left-0 z-50 h-screen
+            transition-transform duration-300 ease-in-out
             w-64
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            lg:relative lg:translate-x-0 lg:z-40
+            lg:${sidebarOpen ? 'block' : 'block'}
           `}>
-            <div className="h-full w-64 bg-background border-r">
+            <div className="h-full w-64 bg-background border-r shadow-lg lg:shadow-none overflow-y-auto">
               <AppSidebar />
             </div>
           </div>
@@ -123,12 +124,12 @@ function AppContent() {
           {/* Overlay for mobile and tablet when sidebar is open */}
           {sidebarOpen && (
             <div 
-              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
           )}
           
-          <main className="flex-1 min-w-0">
+          <main className={`flex-1 min-w-0 transition-all duration-300`}>
             {/* Top Header Bar - Responsive */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="flex h-12 sm:h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
@@ -140,7 +141,7 @@ function AppContent() {
                       console.log('Toggle clicked, current state:', sidebarOpen);
                       setSidebarOpen(!sidebarOpen);
                     }}
-                    className="mr-1 sm:mr-2 flex-shrink-0 lg:hidden"
+                    className="mr-1 sm:mr-2 flex-shrink-0"
                     title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
                   >
                     {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}

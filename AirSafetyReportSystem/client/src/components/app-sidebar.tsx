@@ -30,10 +30,18 @@ import { CompanyLogo } from "@/components/company-logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  
+  // Force re-render to ensure content visibility
+  const [isVisible, setIsVisible] = useState(true);
+  
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   // Fetch unread notifications count
   const { data: unreadCount = 0 } = useQuery<number>({

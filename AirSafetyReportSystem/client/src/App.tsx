@@ -107,7 +107,7 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          {/* Sidebar - Hidden on mobile, overlay on tablet, fixed on desktop */}
+          {/* Sidebar - Fixed on mobile, relative on desktop */}
           <div className={`
             fixed lg:relative z-40 h-full
             transition-all duration-300 ease-in-out

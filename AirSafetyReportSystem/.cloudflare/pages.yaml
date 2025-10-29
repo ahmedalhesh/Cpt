@@ -1,0 +1,20 @@
+# Cloudflare Pages Configuration
+# This file helps Cloudflare Pages understand the build configuration
+
+# Build command (runs during deployment)
+build:
+  command: npm run build
+  cwd: .
+
+# Output directory (where static files are served from)
+output_directory: dist/public
+
+# Node.js version
+node_version: 20
+
+# Environment variables (set these in Cloudflare Pages dashboard)
+# DATABASE_URL=./database.sqlite
+# JWT_SECRET=your-secret-key-here
+# JWT_EXPIRES_IN=7d
+# NODE_ENV=production
+

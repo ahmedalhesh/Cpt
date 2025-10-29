@@ -107,15 +107,13 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          {/* Sidebar - Fixed on mobile, relative on desktop */}
+          {/* Sidebar - Always visible on desktop, overlay on mobile */}
           <div className={`
+            ${sidebarOpen ? 'block' : 'hidden lg:block'}
             fixed lg:relative z-40 h-full
             transition-all duration-300 ease-in-out
-            ${sidebarOpen 
-              ? 'w-64 translate-x-0' 
-              : 'w-0 -translate-x-full lg:w-0 lg:translate-x-0'
-            }
-            lg:${sidebarOpen ? 'w-64' : 'w-0'} lg:overflow-hidden
+            w-64
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           `}>
             <div className="h-full w-64 bg-background border-r">
               <AppSidebar />

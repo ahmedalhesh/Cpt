@@ -1,5 +1,5 @@
 /**
- * /api/reports - Create report (POST)
+ * /api/reports - Get reports (GET) and Create report (POST)
  * Cloudflare Pages Function using D1 directly
  */
 
@@ -13,6 +13,163 @@ function decodeJwtPayload(token: string): any | null {
     return null;
   }
 }
+
+// GET handler - Get all reports
+export const onRequestGet = async ({ request, env }: { request: Request; env: any }) => {
+  try {
+    // Extract user from token
+    const authHeader = request.headers.get('Authorization');
+    const hasBearer = !!authHeader && authHeader.startsWith('Bearer ');
+    const token = hasBearer ? authHeader!.replace('Bearer ', '') : '';
+    const payload = hasBearer ? decodeJwtPayload(token) : null;
+    
+    let userId: string | null = payload?.id ?? null;
+    let userRole: string | null = payload?.role ?? null;
+    
+    // If no userId from token, try to get from email
+    if (!userId && payload?.email) {
+      const stmt = env.DB.prepare('SELECT id, role FROM users WHERE email = ? LIMIT 1');
+      const result = await stmt.bind(payload.email).first();
+      if (result) {
+        userId = result.id as string;
+        userRole = result.role as string;
+      }
+    }
+    
+    // Get query parameters
+    const url = new URL(request.url);
+    const typeFilter = url.searchParams.get('type') || 'all';
+    const statusFilter = url.searchParams.get('status') || 'all';
+    
+    // Build SQL query
+    let sql = `
+      SELECT 
+        r.*,
+        u.id as submitter_id,
+        u.email as submitter_email,
+        u.first_name as submitter_first_name,
+        u.last_name as submitter_last_name,
+        u.role as submitter_role,
+        u.profile_image_url as submitter_profile_image_url
+      FROM reports r
+      LEFT JOIN users u ON r.submitted_by = u.id
+    `;
+    
+    const conditions: string[] = [];
+    const params: any[] = [];
+    
+    // Apply role-based filtering
+    if (userRole !== 'admin' && userId) {
+      conditions.push('r.submitted_by = ?');
+      params.push(userId);
+    }
+    
+    // Apply type filter
+    if (typeFilter && typeFilter !== 'all') {
+      conditions.push('r.report_type = ?');
+      params.push(typeFilter);
+    }
+    
+    // Apply status filter
+    if (statusFilter && statusFilter !== 'all') {
+      conditions.push('r.status = ?');
+      params.push(statusFilter);
+    }
+    
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    sql += ' ORDER BY r.created_at DESC';
+    
+    // Execute query
+    const stmt = env.DB.prepare(sql);
+    const results = await stmt.bind(...params).all();
+    
+    // Transform results to match expected format
+    const reports = results.results.map((row: any) => {
+      // Parse extraData if it's a JSON string
+      let extraData = null;
+      if (row.extra_data) {
+        try {
+          extraData = typeof row.extra_data === 'string' ? JSON.parse(row.extra_data) : row.extra_data;
+        } catch {
+          extraData = row.extra_data;
+        }
+      }
+      
+      return {
+        id: row.id,
+        reportType: row.report_type,
+        status: row.status,
+        submittedBy: row.submitted_by,
+        isAnonymous: row.is_anonymous === 1,
+        description: row.description || '',
+        flightNumber: row.flight_number,
+        aircraftType: row.aircraft_type,
+        route: row.route,
+        eventDateTime: row.event_date_time,
+        contributingFactors: row.contributing_factors,
+        correctiveActions: row.corrective_actions,
+        planImage: row.plan_image,
+        elevImage: row.elev_image,
+        planUnits: row.plan_units,
+        planGridX: row.plan_grid_x,
+        planGridY: row.plan_grid_y,
+        planDistanceX: row.plan_distance_x,
+        planDistanceY: row.plan_distance_y,
+        elevGridCol: row.elev_grid_col,
+        elevGridRow: row.elev_grid_row,
+        elevDistanceHorizM: row.elev_distance_horiz_m,
+        elevDistanceVertFt: row.elev_distance_vert_ft,
+        location: row.location,
+        phaseOfFlight: row.phase_of_flight,
+        riskLevel: row.risk_level,
+        followUpActions: row.follow_up_actions,
+        groundCrewNames: row.ground_crew_names,
+        vehicleInvolved: row.vehicle_involved,
+        damageType: row.damage_type,
+        correctiveSteps: row.corrective_steps,
+        department: row.department,
+        nonconformityType: row.nonconformity_type,
+        rootCause: row.root_cause,
+        responsiblePerson: row.responsible_person,
+        preventiveActions: row.preventive_actions,
+        discretionReason: row.discretion_reason,
+        timeExtension: row.time_extension,
+        crewFatigueDetails: row.crew_fatigue_details,
+        finalDecision: row.final_decision,
+        potentialImpact: row.potential_impact,
+        preventionSuggestions: row.prevention_suggestions,
+        extraData,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        submitter: row.submitter_id ? {
+          id: row.submitter_id,
+          email: row.submitter_email,
+          firstName: row.submitter_first_name,
+          lastName: row.submitter_last_name,
+          role: row.submitter_role,
+          profileImageUrl: row.submitter_profile_image_url,
+        } : null,
+      };
+    });
+    
+    return new Response(JSON.stringify(reports), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error: any) {
+    console.error('GET /api/reports error:', error);
+    return new Response(JSON.stringify({ 
+      message: 'Failed to fetch reports', 
+      error: error?.message || String(error)
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};
 
 export const onRequestPost = async ({ request, env }: { request: Request; env: any }) => {
   try {

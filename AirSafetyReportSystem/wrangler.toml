@@ -5,13 +5,13 @@ pages_build_output_dir = "dist/public"
 
 # D1 Database configuration
 [[d1_databases]]
-binding = "reportDB"
+binding = "DB"
 database_name = "reportDB"
 database_id = "6b920600-39c2-4b2b-a8d5-fbf79cdfbd1a"
 
 [env.production]
 # D1 Database configuration for production
 [[env.production.d1_databases]]
-binding = "reportDB"
+binding = "DB"
 database_name = "reportDB"
 database_id = "6b920600-39c2-4b2b-a8d5-fbf79cdfbd1a"

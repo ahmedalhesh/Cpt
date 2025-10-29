@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
@@ -99,42 +100,44 @@ function AppContent() {
 
   // If authenticated, show main app with sidebar
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <AppSidebar />
-        <main className="flex-1 lg:ml-64">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-foreground">Report System</h1>
-              <div className="flex items-center space-x-4">
-                <ThemeToggle />
+    <SidebarProvider>
+      <div className="min-h-screen bg-background">
+        <div className="flex">
+          <AppSidebar />
+          <main className="flex-1 lg:ml-64">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-foreground">Report System</h1>
+                <div className="flex items-center space-x-4">
+                  <ThemeToggle />
+                </div>
               </div>
+              
+              <Router>
+                <Switch>
+                  <Route path="/" component={Dashboard} />
+                  <Route path="/dashboard" component={Dashboard} />
+                  <Route path="/reports" component={ReportsList} />
+                  <Route path="/reports/new/asr" component={NewReportASR} />
+                  <Route path="/reports/new/or" component={NewReportOR} />
+                  <Route path="/reports/new/rir" component={NewReportRIR} />
+                  <Route path="/reports/new/ncr" component={NewReportNCR} />
+                  <Route path="/reports/new/cdf" component={NewReportCDF} />
+                  <Route path="/reports/new/chr" component={NewReportCHR} />
+                  <Route path="/reports/:id" component={ReportDetail} />
+                  <Route path="/profile" component={Profile} />
+                  <Route path="/settings" component={Settings} />
+                  <Route path="/users" component={UsersManagement} />
+                  <Route path="/notifications" component={Notifications} />
+                  <Route component={NotFound} />
+                </Switch>
+              </Router>
             </div>
-            
-            <Router>
-              <Switch>
-                <Route path="/" component={Dashboard} />
-                <Route path="/dashboard" component={Dashboard} />
-                <Route path="/reports" component={ReportsList} />
-                <Route path="/reports/new/asr" component={NewReportASR} />
-                <Route path="/reports/new/or" component={NewReportOR} />
-                <Route path="/reports/new/rir" component={NewReportRIR} />
-                <Route path="/reports/new/ncr" component={NewReportNCR} />
-                <Route path="/reports/new/cdf" component={NewReportCDF} />
-                <Route path="/reports/new/chr" component={NewReportCHR} />
-                <Route path="/reports/:id" component={ReportDetail} />
-                <Route path="/profile" component={Profile} />
-                <Route path="/settings" component={Settings} />
-                <Route path="/users" component={UsersManagement} />
-                <Route path="/notifications" component={Notifications} />
-                <Route component={NotFound} />
-              </Switch>
-            </Router>
-          </div>
-        </main>
+          </main>
+        </div>
+        <AppFooter />
       </div>
-      <AppFooter />
-    </div>
+    </SidebarProvider>
   );
 }
 

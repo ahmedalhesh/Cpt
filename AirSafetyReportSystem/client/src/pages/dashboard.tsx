@@ -46,13 +46,13 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 overflow-auto">
-      <div className="container max-w-7xl mx-auto p-6 lg:p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2">
+      <div className="container max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8">
+        {/* Header - Responsive */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
             {user?.role === 'admin' ? 'Admin Dashboard' : 'My Dashboard'}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {user?.role === 'admin' 
               ? 'Overview of all aviation safety reports and system activity'
               : 'Overview of your submitted reports and their status'
@@ -60,19 +60,19 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Responsive */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-8 sm:mb-12">
             {[...Array(5)].map((_, i) => (
-              <Card key={i} className="p-6">
-                <Skeleton className="h-4 w-24 mb-4" />
-                <Skeleton className="h-10 w-16 mb-2" />
-                <Skeleton className="h-4 w-32" />
+              <Card key={i} className="p-4 sm:p-6">
+                <Skeleton className="h-3 sm:h-4 w-20 sm:w-24 mb-3 sm:mb-4" />
+                <Skeleton className="h-8 sm:h-10 w-12 sm:w-16 mb-2" />
+                <Skeleton className="h-3 sm:h-4 w-24 sm:w-32" />
               </Card>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-8 sm:mb-12">
             {user?.role === 'admin' ? (
               // Admin Dashboard Stats
               <>
@@ -145,12 +145,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Report Type Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Reports by Type</h2>
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+        {/* Report Type Breakdown - Responsive */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-base sm:text-lg font-semibold">Reports by Type</h2>
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </div>
             {isLoading ? (
               <div className="space-y-4">
@@ -180,10 +180,10 @@ export default function Dashboard() {
             )}
           </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Status Distribution</h2>
-              <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-base sm:text-lg font-semibold">Status Distribution</h2>
+              <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
             </div>
             {isLoading ? (
               <div className="space-y-4">

@@ -107,14 +107,34 @@ function AppContent() {
     <SidebarProvider>
       <div className="min-h-screen bg-background">
         <div className="flex">
-          <div className={`transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0'} overflow-hidden`}>
-            <AppSidebar />
+          {/* Sidebar - Hidden on mobile, overlay on tablet, fixed on desktop */}
+          <div className={`
+            fixed lg:relative z-40 h-full
+            transition-all duration-300 ease-in-out
+            ${sidebarOpen 
+              ? 'w-64 translate-x-0' 
+              : 'w-0 -translate-x-full lg:w-0 lg:translate-x-0'
+            }
+            lg:${sidebarOpen ? 'w-64' : 'w-0'} lg:overflow-hidden
+          `}>
+            <div className="h-full w-64 bg-background border-r">
+              <AppSidebar />
+            </div>
           </div>
-          <main className={`flex-1 transition-all duration-300`}>
-            {/* Top Header Bar */}
+          
+          {/* Overlay for mobile when sidebar is open */}
+          {sidebarOpen && (
+            <div 
+              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          
+          <main className="flex-1 min-w-0">
+            {/* Top Header Bar - Responsive */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container flex h-14 items-center justify-between px-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex h-12 sm:h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
+                <div className="flex items-center space-x-2 min-w-0">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -122,20 +142,22 @@ function AppContent() {
                       console.log('Toggle clicked, current state:', sidebarOpen);
                       setSidebarOpen(!sidebarOpen);
                     }}
-                    className="mr-2"
+                    className="mr-1 sm:mr-2 flex-shrink-0"
                   >
                     {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                   </Button>
-                  <h1 className="text-lg font-semibold text-foreground">Report System</h1>
+                  <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">
+                    Report System
+                  </h1>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                   <ThemeToggle />
                   <NotificationBell />
                 </div>
               </div>
             </header>
             
-            <div className="p-6">
+            <div className="p-3 sm:p-4 lg:p-6">
               <Router>
                 <Switch>
                   <Route path="/" component={Dashboard} />

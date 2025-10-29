@@ -49,8 +49,7 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: an
         u.email as submitter_email,
         u.first_name as submitter_first_name,
         u.last_name as submitter_last_name,
-        u.role as submitter_role,
-        u.profile_image_url as submitter_profile_image_url
+        u.role as submitter_role
       FROM reports r
       LEFT JOIN users u ON r.submitted_by = u.id
     `;
@@ -150,7 +149,6 @@ export const onRequestGet = async ({ request, env }: { request: Request; env: an
           firstName: row.submitter_first_name,
           lastName: row.submitter_last_name,
           role: row.submitter_role,
-          profileImageUrl: row.submitter_profile_image_url,
         } : null,
       };
     });

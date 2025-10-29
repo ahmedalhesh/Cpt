@@ -60,6 +60,29 @@ export default function ReportsList() {
 
   const { data: reports, isLoading } = useQuery<ReportWithUser[]>({
     queryKey: ["/api/reports", typeFilter, statusFilter],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const url = new URL('/api/reports', window.location.origin);
+      if (typeFilter !== 'all') url.searchParams.set('type', typeFilter);
+      if (statusFilter !== 'all') url.searchParams.set('status', statusFilter);
+
+      const res = await fetch(url.toString(), {
+        headers,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch reports: ${res.status}`);
+      }
+
+      return await res.json();
+    },
   });
 
   const filteredReports = reports?.filter((report) => {

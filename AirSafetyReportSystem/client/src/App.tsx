@@ -110,7 +110,7 @@ function AppContent() {
           <div className={`transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-0'} overflow-hidden`}>
             <AppSidebar />
           </div>
-          <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : 'ml-0'}`}>
+          <main className={`flex-1 transition-all duration-300`}>
             {/* Top Header Bar */}
             <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container flex h-14 items-center justify-between px-4">
@@ -118,7 +118,10 @@ function AppContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    onClick={() => {
+                      console.log('Toggle clicked, current state:', sidebarOpen);
+                      setSidebarOpen(!sidebarOpen);
+                    }}
                     className="mr-2"
                   >
                     {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}

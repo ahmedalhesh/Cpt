@@ -120,11 +120,11 @@ export function isAdmin(user: any): boolean {
 }
 
 export function isCaptain(user: any): boolean {
-  return user?.role === 'captain';
+  return user?.role === 'captain' || user?.role === 'under_training_captain';
 }
 
 export function isFirstOfficer(user: any): boolean {
-  return user?.role === 'first_officer';
+  return user?.role === 'first_officer' || user?.role === 'under_training_first_officer';
 }
 
 export function canManageUsers(user: any): boolean {

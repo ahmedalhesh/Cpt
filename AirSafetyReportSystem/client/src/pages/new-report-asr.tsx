@@ -4,6 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { canCreateReports } from "@/lib/roles";
 import { useLocation, Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -175,7 +176,7 @@ export default function NewReportASR() {
     },
   });
 
-  const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
+  const canCreate = useMemo(() => canCreateReports(user?.role), [user?.role]);
   const planRef = useRef<HTMLDivElement | null>(null);
   const elevRef = useRef<HTMLDivElement | null>(null);
 

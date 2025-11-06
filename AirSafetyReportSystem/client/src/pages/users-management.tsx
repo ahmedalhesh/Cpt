@@ -206,6 +206,10 @@ export default function UsersManagement() {
         return 'bg-blue-100 text-blue-800';
       case 'first_officer':
         return 'bg-green-100 text-green-800';
+      case 'under_training_captain':
+        return 'bg-blue-50 text-blue-700';
+      case 'under_training_first_officer':
+        return 'bg-green-50 text-green-700';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -507,6 +511,8 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
           <SelectContent>
             <SelectItem value="captain">Captain</SelectItem>
             <SelectItem value="first_officer">First Officer</SelectItem>
+            <SelectItem value="under_training_captain">Under Training Captain</SelectItem>
+            <SelectItem value="under_training_first_officer">Under Training First Officer</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>
@@ -571,6 +577,8 @@ function EditUserForm({ user, onSubmit }: { user: User; onSubmit: (data: any) =>
           <SelectContent>
             <SelectItem value="captain">Captain</SelectItem>
             <SelectItem value="first_officer">First Officer</SelectItem>
+            <SelectItem value="under_training_captain">Under Training Captain</SelectItem>
+            <SelectItem value="under_training_first_officer">Under Training First Officer</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>

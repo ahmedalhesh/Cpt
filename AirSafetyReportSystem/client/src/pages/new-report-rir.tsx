@@ -3,6 +3,7 @@ import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
+import { canCreateReports } from "@/lib/roles";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { Card } from "@/components/ui/card";
@@ -132,7 +133,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function NewReportRIR() {
   const { user } = useAuth();
-  const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
+  const canCreate = useMemo(() => canCreateReports(user?.role), [user?.role]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);

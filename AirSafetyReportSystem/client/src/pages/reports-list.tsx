@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { canCreateReports } from "@/lib/roles";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -44,7 +45,7 @@ export default function ReportsList() {
   const [submittedByOpen, setSubmittedByOpen] = useState(false);
 
   // Report creation for Captains and First Officers only
-  const canCreateReports = user?.role === 'captain' || user?.role === 'first_officer';
+  const canCreate = canCreateReports(user?.role);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

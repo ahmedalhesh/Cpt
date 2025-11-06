@@ -140,7 +140,7 @@ export function AppSidebar() {
 
 
         {/* Create Report Section for Captains and First Officers */}
-        {(user?.role === 'captain' || user?.role === 'first_officer') && (
+        {((user && (['captain','first_officer','under_training_captain','under_training_first_officer'].includes(user.role))) ) && (
         <SidebarGroup>
           <SidebarGroupLabel>Create Report</SidebarGroupLabel>
           <SidebarGroupContent>

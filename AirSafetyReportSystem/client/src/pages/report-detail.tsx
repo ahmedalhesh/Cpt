@@ -32,7 +32,7 @@ import type { Report, Comment, User as UserType } from "@shared/schema";
 // @ts-ignore - third-party module without TypeScript types
 import arabicReshaper from "arabic-reshaper";
 // @ts-ignore - third-party module without TypeScript types
-import { bidi } from "bidi";
+// Removed external bidi processing to avoid encoding artifacts; rely on font + shaping
 
 // Helper function to process Arabic text for jsPDF
 const processArabicText = (text: string): string => {
@@ -44,11 +44,7 @@ const processArabicText = (text: string): string => {
     
     // Reshape Arabic text
     const reshaped = arabicReshaper.reshape(text);
-    if (!reshaped) return text;
-    
-    // Apply bidirectional algorithm
-    const bidiText = bidi(reshaped);
-    return bidiText || text;
+    return reshaped || text;
   } catch (error) {
     console.error('Error processing Arabic text:', error);
     return text;

@@ -1267,8 +1267,8 @@ export default function ReportDetail() {
       yPosition += 8;
 
       // === BASIC INFORMATION ===
-      // Don't show for Captain Reports (handled in CAPTAIN REPORT DETAILS section)
-      if (report.reportType !== 'captain') {
+      // Exclude for Captain (handled separately), NCR, and CHR PDFs
+      if (report.reportType !== 'captain' && report.reportType !== 'ncr' && report.reportType !== 'chr') {
         const isNCR = report.reportType === 'ncr';
         await addSectionHeader('BASIC INFORMATION', isNCR);
         

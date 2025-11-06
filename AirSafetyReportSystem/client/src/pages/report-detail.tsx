@@ -31,8 +31,9 @@ import { format } from "date-fns";
 import type { Report, Comment, User as UserType } from "@shared/schema";
 // @ts-ignore - third-party module without TypeScript types
 import arabicReshaper from "arabic-reshaper";
-// @ts-ignore - third-party module without TypeScript types
-// Removed external bidi processing to avoid encoding artifacts; rely on font + shaping
+// Ensure Amiri font is always registered at load time (side-effect import)
+// @ts-ignore - generated jsPDF font module has no types
+import "@/lib/fonts/Amiri-Regular-normal.js";
 
 // Helper function to process Arabic text for jsPDF
 const processArabicText = (text: string): string => {
@@ -342,20 +343,8 @@ export default function ReportDetail() {
     const jsPDF = (await import('jspdf')).default;
     const pdf = new jsPDF('p', 'mm', 'a4');
     
-    // Try to load Arabic font if available (for NCR reports)
-    // The font file should be generated using jsPDF font converter
-    // and placed in client/src/lib/fonts/Amiri-Regular-normal.js
-    let arabicFontAvailable = false;
-    try {
-      // Dynamic import of Arabic font if it exists
-      // @ts-ignore - generated jsPDF font module has no types
-      await import('@/lib/fonts/Amiri-Regular-normal.js');
-      // Font is registered via jsPDF.API.events in the module
-      arabicFontAvailable = true;
-    } catch (error) {
-      // Font not available, will use default font with arabic-reshaper
-      console.log('Arabic font not loaded, using default font with text processing');
-    }
+    // Amiri is statically imported above; mark available
+    const arabicFontAvailable = true;
     
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();

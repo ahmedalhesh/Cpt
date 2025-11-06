@@ -4588,19 +4588,19 @@ export default function ReportDetail() {
                 {report.reportType === 'chr' && report.extraData && (
                   <div>
                     <div className="bg-muted border border-border rounded px-3 py-2 mb-4">
-                      <h3 className="text-xs font-bold text-card-foreground uppercase tracking-wide">CONFIDENTIAL HAZARD REPORT (CHR) DETAILS</h3>
+                      <h3 className="text-xs font-bold text-card-foreground tracking-wide">تفاصيل تقرير المخاطر السرية (CHR)</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 break-words">
                       {/* Hazard Description and Recommendations */}
                       {report.extraData.hazardDescription && (
                         <div className="col-span-1 md:col-span-2">
-                          <div className="text-xs text-muted-foreground mb-1">Hazard Description</div>
+                          <div className="text-xs text-muted-foreground mb-1">وصف الخطر</div>
                           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere bg-muted/50 p-3 rounded">{report.extraData.hazardDescription}</div>
                         </div>
                       )}
                       {report.extraData.recommendations && (
                         <div className="col-span-1 md:col-span-2">
-                          <div className="text-xs text-muted-foreground mb-1">Recommendations</div>
+                          <div className="text-xs text-muted-foreground mb-1">التوصيات</div>
                           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere bg-muted/50 p-3 rounded">{report.extraData.recommendations}</div>
                         </div>
                       )}
@@ -4608,25 +4608,25 @@ export default function ReportDetail() {
                       {/* Reporter Information */}
                       {report.extraData.reporterName && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Reporter Name</div>
+                          <div className="text-xs text-muted-foreground">اسم المُبلِّغ</div>
                           <div className="text-sm font-medium break-words">{report.extraData.reporterName}</div>
                         </div>
                       )}
                       {report.extraData.reporterPosition && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Reporter Position</div>
+                          <div className="text-xs text-muted-foreground">الوظيفة</div>
                           <div className="text-sm font-medium break-words">{report.extraData.reporterPosition}</div>
                         </div>
                       )}
                       {report.extraData.reporterIdNo && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Reporter ID No</div>
+                          <div className="text-xs text-muted-foreground">رقم الهوية</div>
                           <div className="text-sm font-medium break-words">{report.extraData.reporterIdNo}</div>
                         </div>
                       )}
                       {report.extraData.reporterDate && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Reporter Date</div>
+                          <div className="text-xs text-muted-foreground">تاريخ البلاغ</div>
                           <div className="text-sm font-medium break-words">{report.extraData.reporterDate}</div>
                         </div>
                       )}
@@ -4634,19 +4634,19 @@ export default function ReportDetail() {
                       {/* Safety Officer Information */}
                       {report.extraData.validationNotes && (
                         <div className="col-span-1 md:col-span-2">
-                          <div className="text-xs text-muted-foreground mb-1">Validation Notes</div>
+                          <div className="text-xs text-muted-foreground mb-1">ملاحظات التحقق</div>
                           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere bg-muted/50 p-3 rounded">{report.extraData.validationNotes}</div>
                         </div>
                       )}
                       {report.extraData.safetyOfficerName && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Safety Officer Name</div>
+                          <div className="text-xs text-muted-foreground">اسم مسؤول السلامة</div>
                           <div className="text-sm font-medium break-words">{report.extraData.safetyOfficerName}</div>
                         </div>
                       )}
                       {report.extraData.safetyOfficerDate && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Safety Officer Date</div>
+                          <div className="text-xs text-muted-foreground">تاريخ مسؤول السلامة</div>
                           <div className="text-sm font-medium break-words">{report.extraData.safetyOfficerDate}</div>
                         </div>
                       )}
@@ -4654,19 +4654,19 @@ export default function ReportDetail() {
                       {/* Corrective Action */}
                       {report.extraData.correctiveActionNotes && (
                         <div className="col-span-1 md:col-span-2">
-                          <div className="text-xs text-muted-foreground mb-1">Corrective Action Notes</div>
+                          <div className="text-xs text-muted-foreground mb-1">ملاحظات الإجراء التصحيحي</div>
                           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere bg-muted/50 p-3 rounded">{report.extraData.correctiveActionNotes}</div>
                         </div>
                       )}
                       {report.extraData.correctiveName && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Corrective Name</div>
+                          <div className="text-xs text-muted-foreground">اسم مُنفّذ الإجراء</div>
                           <div className="text-sm font-medium break-words">{report.extraData.correctiveName}</div>
                         </div>
                       )}
                       {report.extraData.correctiveDate && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Corrective Date</div>
+                          <div className="text-xs text-muted-foreground">تاريخ الإجراء التصحيحي</div>
                           <div className="text-sm font-medium break-words">{report.extraData.correctiveDate}</div>
                         </div>
                       )}
@@ -4674,13 +4674,13 @@ export default function ReportDetail() {
                       {/* Follow-Up */}
                       {report.extraData.followUpActionTaken && (
                         <div className="col-span-1 md:col-span-2">
-                          <div className="text-xs text-muted-foreground mb-1">Follow-Up Action Taken</div>
+                          <div className="text-xs text-muted-foreground mb-1">إجراء المتابعة المتخذ</div>
                           <div className="text-sm leading-relaxed whitespace-pre-wrap break-words overflow-wrap-anywhere bg-muted/50 p-3 rounded">{report.extraData.followUpActionTaken}</div>
                         </div>
                       )}
                       {report.extraData.followUpDecision && (
                         <div>
-                          <div className="text-xs text-muted-foreground">Follow-Up Decision</div>
+                          <div className="text-xs text-muted-foreground">قرار المتابعة</div>
                           <div className="text-sm font-medium break-words">
                             {(() => {
                               const decisionLabels: { [key: string]: string } = {

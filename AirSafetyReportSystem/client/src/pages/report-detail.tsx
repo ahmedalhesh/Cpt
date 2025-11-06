@@ -1235,22 +1235,59 @@ export default function ReportDetail() {
       // Company Name and Report Type
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
+      // Use Arabic font for NCR reports
+      if (report.reportType === 'ncr' && arabicFontAvailable) {
+        try {
+          pdf.setFont('Amiri-Regular', 'normal');
+        } catch {
+          pdf.setFont('helvetica', 'bold');
+        }
+      } else {
+        pdf.setFont('helvetica', 'bold');
+      }
       pdf.text(companySettings?.companyName || 'Report Sys', margin + (companySettings?.logo ? 18 : 0), yPosition + 5);
       
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
+      // Use Arabic font for NCR reports
+      if (report.reportType === 'ncr' && arabicFontAvailable) {
+        try {
+          pdf.setFont('Amiri-Regular', 'normal');
+        } catch {
+          pdf.setFont('helvetica', 'normal');
+        }
+      } else {
+        pdf.setFont('helvetica', 'normal');
+      }
       const reportTypeDisplay = report.reportType.toLowerCase() === 'cdf' ? 'CDR' : report.reportType.toUpperCase();
       pdf.text(`${reportTypeDisplay} Report`, margin + (companySettings?.logo ? 18 : 0), yPosition + 10);
       
       // Right side: Report ID, Date, Status
       pdf.setFontSize(8);
       pdf.setTextColor(60, 60, 60);
+      // Use Arabic font for NCR reports
+      if (report.reportType === 'ncr' && arabicFontAvailable) {
+        try {
+          pdf.setFont('Amiri-Regular', 'normal');
+        } catch {
+          pdf.setFont('helvetica', 'normal');
+        }
+      } else {
+        pdf.setFont('helvetica', 'normal');
+      }
       pdf.text(`Report ID: #${report.id.slice(0, 5).toUpperCase()}`, pageWidth - margin, yPosition + 3, { align: 'right' });
       if (report.createdAt) {
         pdf.text(`Date: ${formatDateTimeToDDMMYYYYHHMM(report.createdAt)}`, pageWidth - margin, yPosition + 7, { align: 'right' });
       }
-      pdf.setFont('helvetica', 'bold');
+      // Use Arabic font for NCR reports
+      if (report.reportType === 'ncr' && arabicFontAvailable) {
+        try {
+          pdf.setFont('Amiri-Regular', 'normal');
+        } catch {
+          pdf.setFont('helvetica', 'bold');
+        }
+      } else {
+        pdf.setFont('helvetica', 'bold');
+      }
       pdf.text(`Status: ${report.status.toUpperCase().replace('_', ' ')}`, pageWidth - margin, yPosition + 11, { align: 'right' });
       
       yPosition += 18;
@@ -1263,26 +1300,27 @@ export default function ReportDetail() {
       // === BASIC INFORMATION ===
       // Don't show for Captain Reports (handled in CAPTAIN REPORT DETAILS section)
       if (report.reportType !== 'captain') {
-        addSectionHeader('BASIC INFORMATION');
+        const isNCR = report.reportType === 'ncr';
+        await addSectionHeader('BASIC INFORMATION', isNCR);
         
         if (!report.isAnonymous) {
           await addField('Submitted By', 
             report.submitter?.firstName && report.submitter?.lastName
               ? `${report.submitter.firstName} ${report.submitter.lastName}`
-              : report.submitter?.email || 'Unknown');
+              : report.submitter?.email || 'Unknown', 1, isNCR);
         } else {
-          await addField('Submitted By', 'Anonymous Report');
+          await addField('Submitted By', 'Anonymous Report', 1, isNCR);
         }
 
-        await addField('Flight Number', report.flightNumber);
-        await addField('Aircraft Type', report.aircraftType);
+        await addField('Flight Number', report.flightNumber, 1, isNCR);
+        await addField('Aircraft Type', report.aircraftType, 1, isNCR);
         
         // Route - only show if meaningful (not empty or just separator)
         if (report.route && report.route.trim() && report.route.trim() !== '/') {
-          await addField('Route', report.route);
+          await addField('Route', report.route, 1, isNCR);
         }
         
-        await addField('Location', report.location);
+        await addField('Location', report.location, 1, isNCR);
       }
 
       // === DESCRIPTION ===
@@ -2471,8 +2509,17 @@ export default function ReportDetail() {
           
           // User name
           pdf.setFontSize(8);
-          pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(0, 0, 0);
+          // Use Arabic font for NCR reports
+          if (report.reportType === 'ncr' && arabicFontAvailable) {
+            try {
+              pdf.setFont('Amiri-Regular', 'normal');
+            } catch {
+              pdf.setFont('helvetica', 'bold');
+            }
+          } else {
+            pdf.setFont('helvetica', 'bold');
+          }
           const userName = comment.user?.firstName && comment.user?.lastName
             ? `${comment.user.firstName} ${comment.user.lastName}`
             : comment.user?.email || 'Unknown';
@@ -2480,15 +2527,40 @@ export default function ReportDetail() {
           
           // Timestamp
           if (comment.createdAt) {
-            pdf.setFont('helvetica', 'normal');
+            // Use Arabic font for NCR reports
+            if (report.reportType === 'ncr' && arabicFontAvailable) {
+              try {
+                pdf.setFont('Amiri-Regular', 'normal');
+              } catch {
+                pdf.setFont('helvetica', 'normal');
+              }
+            } else {
+              pdf.setFont('helvetica', 'normal');
+            }
             pdf.setTextColor(100, 100, 100);
             pdf.text(formatDateTimeToDDMMYYYYHHMM(comment.createdAt), pageWidth - margin - 40, yPosition + 5);
           }
           
-          // Comment content - handle Arabic text
+          // Comment content - handle Arabic text for NCR reports
           const commentStartY = yPosition + 10;
-          if (hasArabicChars(comment.content)) {
-            // Render Arabic text as image
+          const isNCRComment = report.reportType === 'ncr';
+          if (isNCRComment && arabicFontAvailable) {
+            // For NCR reports, use Arabic font directly with text processing
+            pdf.setFontSize(9);
+            pdf.setTextColor(0, 0, 0);
+            try {
+              pdf.setFont('Amiri-Regular', 'normal');
+            } catch {
+              pdf.setFont('helvetica', 'normal');
+            }
+            const processedComment = processArabicText(comment.content);
+            const commentLines = pdf.splitTextToSize(processedComment, contentWidth - 6);
+            commentLines.forEach((line: string, lineIndex: number) => {
+              pdf.text(line, margin + 2, commentStartY + (lineIndex * 4));
+            });
+            yPosition += totalCommentHeight + 3;
+          } else if (hasArabicChars(comment.content)) {
+            // Render Arabic text as image for non-NCR reports
             const imageData = await renderArabicTextAsImage(comment.content, 9, contentWidth - 6);
             if (imageData) {
               try {
@@ -2552,6 +2624,16 @@ export default function ReportDetail() {
         // Footer text (small, gray)
         pdf.setFontSize(7);
         pdf.setTextColor(120, 120, 120);
+        // Use Arabic font for NCR reports
+        if (report.reportType === 'ncr' && arabicFontAvailable) {
+          try {
+            pdf.setFont('Amiri-Regular', 'normal');
+          } catch {
+            pdf.setFont('helvetica', 'normal');
+          }
+        } else {
+          pdf.setFont('helvetica', 'normal');
+        }
         pdf.text(`Generated on ${formatDateTimeToDDMMYYYYHHMMSS(new Date())}`, margin, pageHeight - 8);
         
         // Page number

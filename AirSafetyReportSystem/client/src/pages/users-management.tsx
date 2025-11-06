@@ -210,6 +210,16 @@ export default function UsersManagement() {
         return 'bg-blue-50 text-blue-700';
       case 'under_training_first_officer':
         return 'bg-green-50 text-green-700';
+      case 'flight_operation_manager':
+      case 'flight_operation_and_crew_affairs_manager':
+      case 'flight_operations_training_manager':
+      case 'chief_pilot_a330':
+      case 'chief_pilot_a320':
+      case 'technical_pilot_a330':
+      case 'technical_pilot_a320':
+      case 'head_of_safety_department':
+      case 'head_of_compliance':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -513,6 +523,15 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
             <SelectItem value="first_officer">First Officer</SelectItem>
             <SelectItem value="under_training_captain">Under Training Captain</SelectItem>
             <SelectItem value="under_training_first_officer">Under Training First Officer</SelectItem>
+            <SelectItem value="flight_operation_manager">Flight operation manager</SelectItem>
+            <SelectItem value="flight_operation_and_crew_affairs_manager">Flight operation and crew affairs manager</SelectItem>
+            <SelectItem value="flight_operations_training_manager">Flight operations training manager</SelectItem>
+            <SelectItem value="chief_pilot_a330">Chief pilot A330</SelectItem>
+            <SelectItem value="chief_pilot_a320">Chief pilot A320</SelectItem>
+            <SelectItem value="technical_pilot_a330">Technical pilot A330</SelectItem>
+            <SelectItem value="technical_pilot_a320">Technical pilot A320</SelectItem>
+            <SelectItem value="head_of_safety_department">Head of safety department</SelectItem>
+            <SelectItem value="head_of_compliance">Head of compliance</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>
@@ -579,6 +598,15 @@ function EditUserForm({ user, onSubmit }: { user: User; onSubmit: (data: any) =>
             <SelectItem value="first_officer">First Officer</SelectItem>
             <SelectItem value="under_training_captain">Under Training Captain</SelectItem>
             <SelectItem value="under_training_first_officer">Under Training First Officer</SelectItem>
+            <SelectItem value="flight_operation_manager">Flight operation manager</SelectItem>
+            <SelectItem value="flight_operation_and_crew_affairs_manager">Flight operation and crew affairs manager</SelectItem>
+            <SelectItem value="flight_operations_training_manager">Flight operations training manager</SelectItem>
+            <SelectItem value="chief_pilot_a330">Chief pilot A330</SelectItem>
+            <SelectItem value="chief_pilot_a320">Chief pilot A320</SelectItem>
+            <SelectItem value="technical_pilot_a330">Technical pilot A330</SelectItem>
+            <SelectItem value="technical_pilot_a320">Technical pilot A320</SelectItem>
+            <SelectItem value="head_of_safety_department">Head of safety department</SelectItem>
+            <SelectItem value="head_of_compliance">Head of compliance</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
           </SelectContent>
         </Select>

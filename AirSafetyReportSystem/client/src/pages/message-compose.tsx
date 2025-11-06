@@ -34,6 +34,15 @@ export default function MessageCompose() {
     { value: "under_training_first_officer", label: "First Officers (Under Training)" },
     { value: "safety_officer", label: "Safety Officers" },
     { value: "admin", label: "Admins" },
+    { value: "flight_operation_manager", label: "Flight Operation Managers" },
+    { value: "flight_operation_and_crew_affairs_manager", label: "Flight Ops & Crew Affairs Managers" },
+    { value: "flight_operations_training_manager", label: "Flight Operations Training Managers" },
+    { value: "chief_pilot_a330", label: "Chief Pilot A330" },
+    { value: "chief_pilot_a320", label: "Chief Pilot A320" },
+    { value: "technical_pilot_a330", label: "Technical Pilot A330" },
+    { value: "technical_pilot_a320", label: "Technical Pilot A320" },
+    { value: "head_of_safety_department", label: "Head of Safety Department" },
+    { value: "head_of_compliance", label: "Head of Compliance" },
   ];
 
   const filteredUsers = useMemo(() => {

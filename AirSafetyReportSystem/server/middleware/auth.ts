@@ -2,6 +2,19 @@
 import type { RequestHandler } from "express";
 import { storage } from "../storage";
 
+const ADMIN_LIKE = new Set([
+  'admin',
+  'flight_operation_manager',
+  'flight_operation_and_crew_affairs_manager',
+  'flight_operations_training_manager',
+  'chief_pilot_a330',
+  'chief_pilot_a320',
+  'technical_pilot_a330',
+  'technical_pilot_a320',
+  'head_of_safety_department',
+  'head_of_compliance',
+]);
+
 export const requireRole = (allowedRoles: string[]): RequestHandler => {
   return async (req: any, res, next) => {
     try {
@@ -29,16 +42,21 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
         email: user?.email
       });
       
-      if (!user || !allowedRoles.includes(user.role)) {
+      // Expand 'admin' to include admin-like roles
+      const expandedAllowed = allowedRoles.includes('admin')
+        ? Array.from(new Set([...allowedRoles.filter(r => r !== 'admin'), ...ADMIN_LIKE]))
+        : allowedRoles;
+
+      if (!user || !expandedAllowed.includes(user.role)) {
         console.log(`❌ [MIDDLEWARE] Access denied:`, {
           userExists: !!user,
           userRole: user?.role,
-          requiredRoles: allowedRoles,
-          hasAccess: user && allowedRoles.includes(user.role)
+          requiredRoles: expandedAllowed,
+          hasAccess: user && expandedAllowed.includes(user.role)
         });
         return res.status(403).json({ 
           message: "Insufficient permissions", 
-          requiredRoles: allowedRoles,
+          requiredRoles: expandedAllowed,
           userRole: user?.role 
         });
       }

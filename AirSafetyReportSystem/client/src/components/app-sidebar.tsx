@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { isAdminLike } from "@/lib/roles";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { CompanyLogo } from "@/components/company-logo";
 import { Button } from "@/components/ui/button";
@@ -211,7 +212,7 @@ export function AppSidebar() {
         </SidebarGroup>
         )}
 
-        {user?.role === 'admin' && (
+        {isAdminLike(user?.role) && (
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>

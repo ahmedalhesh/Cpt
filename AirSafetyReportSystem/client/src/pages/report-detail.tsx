@@ -2106,57 +2106,57 @@ export default function ReportDetail() {
         }
       }
 
-      // CHR Details - Matching form order with grid layout
+      // CHR Details - Arabic labels with RTL layout
       if (report.reportType === 'chr' && report.extraData) {
-        await addSectionHeader('CONFIDENTIAL HAZARD REPORT (CHR) DETAILS');
+        await addSectionHeader('تفاصيل تقرير المخاطر السرية (CHR)', true);
         
-        // Hazard Description and Recommendations (matching form order)
+        // Hazard Description and Recommendations
         if (report.extraData.hazardDescription) {
-          await addLongTextField('Hazard Description', report.extraData.hazardDescription, false);
+          await addLongTextField('وصف الخطر', report.extraData.hazardDescription, true);
         }
         if (report.extraData.recommendations) {
-          await addLongTextField('Recommendations', report.extraData.recommendations, false);
+          await addLongTextField('التوصيات', report.extraData.recommendations, true);
         }
         
-        // Reporter Information (matching form order)
+        // Reporter Information
         if (report.extraData.reporterName) {
-          await addField('Reporter Name', report.extraData.reporterName);
+          await addField('اسم المُبلِّغ', report.extraData.reporterName, 1, true);
         }
         if (report.extraData.reporterPosition) {
-          await addField('Reporter Position', report.extraData.reporterPosition);
+          await addField('الوظيفة', report.extraData.reporterPosition, 1, true);
         }
         if (report.extraData.reporterIdNo) {
-          await addField('Reporter ID No', report.extraData.reporterIdNo);
+          await addField('رقم الهوية', report.extraData.reporterIdNo, 1, true);
         }
         if (report.extraData.reporterDate) {
-          await addField('Reporter Date', report.extraData.reporterDate);
+          await addField('تاريخ البلاغ', report.extraData.reporterDate, 1, true);
         }
         
-        // Safety Officer Information (matching form order)
+        // Safety Officer Information
         if (report.extraData.validationNotes) {
-          await addLongTextField('Validation Notes', report.extraData.validationNotes, false);
+          await addLongTextField('ملاحظات التحقق', report.extraData.validationNotes, true);
         }
         if (report.extraData.safetyOfficerName) {
-          await addField('Safety Officer Name', report.extraData.safetyOfficerName);
+          await addField('اسم مسؤول السلامة', report.extraData.safetyOfficerName, 1, true);
         }
         if (report.extraData.safetyOfficerDate) {
-          await addField('Safety Officer Date', report.extraData.safetyOfficerDate);
+          await addField('تاريخ مسؤول السلامة', report.extraData.safetyOfficerDate, 1, true);
         }
         
-        // Corrective Action (matching form order)
+        // Corrective Action
         if (report.extraData.correctiveActionNotes) {
-          await addLongTextField('Corrective Action Notes', report.extraData.correctiveActionNotes, false);
+          await addLongTextField('ملاحظات الإجراء التصحيحي', report.extraData.correctiveActionNotes, true);
         }
         if (report.extraData.correctiveName) {
-          await addField('Corrective Name', report.extraData.correctiveName);
+          await addField('اسم مُنفّذ الإجراء', report.extraData.correctiveName, 1, true);
         }
         if (report.extraData.correctiveDate) {
-          await addField('Corrective Date', report.extraData.correctiveDate);
+          await addField('تاريخ الإجراء التصحيحي', report.extraData.correctiveDate, 1, true);
         }
         
-        // Follow-Up (matching form order)
+        // Follow-Up
         if (report.extraData.followUpActionTaken) {
-          await addLongTextField('Follow-Up Action Taken', report.extraData.followUpActionTaken, false);
+          await addLongTextField('إجراء المتابعة المتخذ', report.extraData.followUpActionTaken, true);
         }
         if (report.extraData.followUpDecision) {
           const decisionLabels: { [key: string]: string } = {
@@ -2164,7 +2164,7 @@ export default function ReportDetail() {
             'UNSAT': 'UNSAT (غير مقبول)',
             'NEXT_AUDIT': 'NEXT AUDIT (التدقيق القادم)'
           };
-          await addField('Follow-Up Decision', decisionLabels[report.extraData.followUpDecision] || report.extraData.followUpDecision);
+          await addField('قرار المتابعة', decisionLabels[report.extraData.followUpDecision] || report.extraData.followUpDecision, 1, true);
         }
       }
 

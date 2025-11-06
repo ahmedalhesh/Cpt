@@ -96,16 +96,34 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
     });
 }
 
+const ADMIN_LIKE = new Set([
+  'admin',
+  'flight_operation_manager',
+  'flight_operation_and_crew_affairs_manager',
+  'flight_operations_training_manager',
+  'chief_pilot_a330',
+  'chief_pilot_a320',
+  'technical_pilot_a330',
+  'technical_pilot_a320',
+  'head_of_safety_department',
+  'head_of_compliance',
+]);
+
 export function requireRole(allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Expand 'admin' to include admin-like roles
+    const expandedAllowed = allowedRoles.includes('admin')
+      ? Array.from(new Set([...allowedRoles.filter(r => r !== 'admin'), ...ADMIN_LIKE]))
+      : allowedRoles;
+
+    if (!expandedAllowed.includes(req.user.role)) {
       return res.status(403).json({ 
         message: 'Insufficient permissions',
-        required: allowedRoles,
+        required: expandedAllowed,
         current: req.user.role
       });
     }
@@ -116,7 +134,7 @@ export function requireRole(allowedRoles: string[]) {
 
 // Role-based permission helpers
 export function isAdmin(user: any): boolean {
-  return user?.role === 'admin';
+  return ADMIN_LIKE.has(user?.role);
 }
 
 export function isCaptain(user: any): boolean {

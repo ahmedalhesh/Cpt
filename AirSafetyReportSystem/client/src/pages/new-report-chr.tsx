@@ -127,7 +127,7 @@ export default function NewReportCHR() {
 
   return (
     <div className="flex-1 overflow-auto" dir="rtl">
-      <div className="container max-w-6xl mx-auto p-3 sm:p-5">
+      <div className="container max-w-6xl mx-auto p-3 sm:p-5 font-cairo">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
           <h1 className="text-xl sm:text-2xl font-semibold">تقرير خطر أو واقعة (CHR)</h1>
           <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">

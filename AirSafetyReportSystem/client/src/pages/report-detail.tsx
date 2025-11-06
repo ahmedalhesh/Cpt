@@ -2779,7 +2779,7 @@ export default function ReportDetail() {
   return (
     <div className="flex-1 overflow-auto">
       <div
-        className={`container max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 ${report && (report.reportType === 'ncr' || report.reportType === 'chr') ? 'text-right' : ''}`}
+        className={`container max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 ${report && (report.reportType === 'ncr' || report.reportType === 'chr') ? 'text-right font-cairo' : ''}`}
         dir={report && (report.reportType === 'ncr' || report.reportType === 'chr') ? 'rtl' : 'ltr'}
       >
 

@@ -2780,17 +2780,7 @@ export default function ReportDetail() {
         // Footer text (small, gray)
         pdf.setFontSize(7);
         pdf.setTextColor(120, 120, 120);
-          // Use Arabic font for NCR reports
-          if (report.reportType === 'ncr' && arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch (e) {
-              console.warn('Failed to set Amiri-Regular font in comments, using helvetica:', e);
-              pdf.setFont('helvetica', 'normal');
-            }
-          } else {
-            pdf.setFont('helvetica', 'normal');
-          }
+        pdf.setFont('helvetica', 'normal');
         pdf.text(`Generated on ${formatDateTimeToDDMMYYYYHHMMSS(new Date())}`, margin, pageHeight - 8);
         
         // Page number

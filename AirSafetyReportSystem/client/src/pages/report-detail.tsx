@@ -552,7 +552,12 @@ export default function ReportDetail() {
         // Use splitTextToSize for Arabic text to handle wrapping
         const textLines = pdf.splitTextToSize(processedText, contentWidth - (padding * 2));
         textLines.forEach((line: string, index: number) => {
-          pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
+          if (isNCR) {
+            // RTL header alignment
+            pdf.text(line, margin + contentWidth - padding, yPosition + 5 + (index * 3.5), { align: 'right' });
+          } else {
+            pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
+          }
         });
         
         yPosition += headerHeight + 5; // Add spacing after header
@@ -583,7 +588,9 @@ export default function ReportDetail() {
         
         for (let i = 0; i < currentRowFields.length; i++) {
           const field = currentRowFields[i];
-          const xPos = margin + (i * (fieldWidth + fieldGap));
+          const xPos = isNCR
+            ? (margin + contentWidth - fieldWidth - (i * (fieldWidth + fieldGap)))
+            : (margin + (i * (fieldWidth + fieldGap)));
           let fieldY = startY;
           
           // Label (text-xs text-muted-foreground) - For NCR, use Arabic fonts directly
@@ -602,7 +609,11 @@ export default function ReportDetail() {
           }
           const labelLines = pdf.splitTextToSize(processedLabel, fieldWidth - 4);
           labelLines.forEach((line: string, idx: number) => {
-            pdf.text(line, xPos, fieldY - (idx * 3.5));
+            if (isNCR) {
+              pdf.text(line, xPos + fieldWidth - 2, fieldY - (idx * 3.5), { align: 'right' });
+            } else {
+              pdf.text(line, xPos, fieldY - (idx * 3.5));
+            }
           });
           fieldY += 3.5;
           
@@ -623,7 +634,11 @@ export default function ReportDetail() {
           }
           const valueLines = pdf.splitTextToSize(processedValue, fieldWidth - 4);
           valueLines.forEach((line: string, idx: number) => {
-            pdf.text(line, xPos, fieldY + (idx * 3.5));
+            if (isNCR) {
+              pdf.text(line, xPos + fieldWidth - 2, fieldY + (idx * 3.5), { align: 'right' });
+            } else {
+              pdf.text(line, xPos, fieldY + (idx * 3.5));
+            }
           });
           fieldY += valueLines.length * 3.5;
           
@@ -660,7 +675,11 @@ export default function ReportDetail() {
           }
           const labelLines = pdf.splitTextToSize(processedLabel, contentWidth - 4);
           labelLines.forEach((line: string, idx: number) => {
-            pdf.text(line, margin, startY - (idx * 3.5));
+            if (isNCR) {
+              pdf.text(line, margin + contentWidth - 2, startY - (idx * 3.5), { align: 'right' });
+            } else {
+              pdf.text(line, margin, startY - (idx * 3.5));
+            }
           });
           yPosition = startY + 3.5;
           
@@ -681,7 +700,11 @@ export default function ReportDetail() {
           }
           const valueLines = pdf.splitTextToSize(processedValue, contentWidth - 4);
           valueLines.forEach((line: string) => {
-            pdf.text(line, margin, yPosition);
+            if (isNCR) {
+              pdf.text(line, margin + contentWidth - 2, yPosition, { align: 'right' });
+            } else {
+              pdf.text(line, margin, yPosition);
+            }
             yPosition += 3.5;
           });
           
@@ -720,7 +743,11 @@ export default function ReportDetail() {
         }
         const labelLines = pdf.splitTextToSize(processedLabel, contentWidth - 8);
         labelLines.forEach((line: string, idx: number) => {
-          pdf.text(line, margin, yPosition - (idx * 3.5));
+          if (isNCR) {
+            pdf.text(line, margin + contentWidth - 4, yPosition - (idx * 3.5), { align: 'right' });
+          } else {
+            pdf.text(line, margin, yPosition - (idx * 3.5));
+          }
         });
         yPosition += 4;
         
@@ -746,7 +773,11 @@ export default function ReportDetail() {
           pdf.setFont('helvetica', 'normal');
         }
         textLines.forEach((line: string, idx: number) => {
-          pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
+          if (isNCR) {
+            pdf.text(line, margin + contentWidth - 5, yPosition + 3 + (idx * 3.5), { align: 'right' });
+          } else {
+            pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
+          }
         });
         yPosition += boxHeight + 4;
       };
@@ -2477,7 +2508,7 @@ export default function ReportDetail() {
             const processedComment = processArabicText(comment.content);
             const commentLines = pdf.splitTextToSize(processedComment, contentWidth - 6);
             commentLines.forEach((line: string, lineIndex: number) => {
-              pdf.text(line, margin + 2, commentStartY + (lineIndex * 4));
+              pdf.text(line, margin + contentWidth - 2, commentStartY + (lineIndex * 4), { align: 'right' });
             });
             yPosition += totalCommentHeight + 3;
           } else {

@@ -33,7 +33,10 @@ import type { Report, Comment, User as UserType } from "@shared/schema";
 import arabicReshaper from "arabic-reshaper";
 // Ensure Amiri font is always registered at load time (side-effect import)
 // @ts-ignore - generated jsPDF font module has no types
-import "@/lib/fonts/Amiri-Regular-normal.js";
+// @ts-ignore - generated jsPDF font module has no types
+import "@/lib/fonts/Cairo-Regular-normal.js";
+// Default Arabic font family (switchable)
+const ARABIC_FONT = 'Cairo-Regular';
 
 // Helper function to process Arabic text for jsPDF
 const processArabicText = (text: string): string => {
@@ -379,7 +382,7 @@ export default function ReportDetail() {
           const processed = processArabicText(text);
           if (arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
             }
@@ -539,7 +542,7 @@ export default function ReportDetail() {
         // Try to use Arabic font if available, otherwise use helvetica
         if (arabicFontAvailable) {
           try {
-            pdf.setFont('Amiri-Regular', 'normal');
+            pdf.setFont(ARABIC_FONT, 'normal');
           } catch {
             pdf.setFont('helvetica', 'bold');
           }
@@ -598,7 +601,7 @@ export default function ReportDetail() {
           // Try to use Arabic font if available
           if (arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'normal');
             }
@@ -623,7 +626,7 @@ export default function ReportDetail() {
           // Try to use Arabic font if available
           if (arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'medium');
             }
@@ -664,7 +667,7 @@ export default function ReportDetail() {
           // Try to use Arabic font if available
           if (arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'normal');
             }
@@ -689,7 +692,7 @@ export default function ReportDetail() {
           // Try to use Arabic font if available
           if (arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'medium');
             }
@@ -732,7 +735,7 @@ export default function ReportDetail() {
         // Try to use Arabic font if available
         if (arabicFontAvailable) {
           try {
-            pdf.setFont('Amiri-Regular', 'normal');
+            pdf.setFont(ARABIC_FONT, 'normal');
           } catch {
             pdf.setFont('helvetica', 'normal');
           }
@@ -763,7 +766,7 @@ export default function ReportDetail() {
         // Try to use Arabic font if available
         if (arabicFontAvailable) {
           try {
-            pdf.setFont('Amiri-Regular', 'normal');
+            pdf.setFont(ARABIC_FONT, 'normal');
           } catch {
             pdf.setFont('helvetica', 'normal');
           }
@@ -1205,7 +1208,7 @@ export default function ReportDetail() {
       // Use Arabic font for NCR reports
       if (report.reportType === 'ncr' && arabicFontAvailable) {
         try {
-          pdf.setFont('Amiri-Regular', 'normal');
+          pdf.setFont(ARABIC_FONT, 'normal');
         } catch {
           pdf.setFont('helvetica', 'bold');
         }
@@ -1218,7 +1221,7 @@ export default function ReportDetail() {
       // Use Arabic font for NCR reports
       if (report.reportType === 'ncr' && arabicFontAvailable) {
         try {
-          pdf.setFont('Amiri-Regular', 'normal');
+          pdf.setFont(ARABIC_FONT, 'normal');
         } catch {
           pdf.setFont('helvetica', 'normal');
         }
@@ -1234,7 +1237,7 @@ export default function ReportDetail() {
       // Use Arabic font for NCR reports
       if (report.reportType === 'ncr' && arabicFontAvailable) {
         try {
-          pdf.setFont('Amiri-Regular', 'normal');
+          pdf.setFont(ARABIC_FONT, 'normal');
         } catch {
           pdf.setFont('helvetica', 'normal');
         }
@@ -1248,7 +1251,7 @@ export default function ReportDetail() {
       // Use Arabic font for NCR reports
       if (report.reportType === 'ncr' && arabicFontAvailable) {
         try {
-          pdf.setFont('Amiri-Regular', 'normal');
+          pdf.setFont(ARABIC_FONT, 'normal');
         } catch {
           pdf.setFont('helvetica', 'bold');
         }
@@ -2463,7 +2466,7 @@ export default function ReportDetail() {
           // Use Arabic font for NCR reports
           if (report.reportType === 'ncr' && arabicFontAvailable) {
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'bold');
             }
@@ -2480,7 +2483,7 @@ export default function ReportDetail() {
             // Use Arabic font for NCR reports
             if (report.reportType === 'ncr' && arabicFontAvailable) {
               try {
-                pdf.setFont('Amiri-Regular', 'normal');
+                pdf.setFont(ARABIC_FONT, 'normal');
               } catch {
                 pdf.setFont('helvetica', 'normal');
               }
@@ -2499,7 +2502,7 @@ export default function ReportDetail() {
             pdf.setFontSize(9);
             pdf.setTextColor(0, 0, 0);
             try {
-              pdf.setFont('Amiri-Regular', 'normal');
+              pdf.setFont(ARABIC_FONT, 'normal');
             } catch {
               pdf.setFont('helvetica', 'normal');
             }
@@ -2539,7 +2542,7 @@ export default function ReportDetail() {
         // Use Arabic font for NCR reports
         if (report.reportType === 'ncr' && arabicFontAvailable) {
           try {
-            pdf.setFont('Amiri-Regular', 'normal');
+            pdf.setFont(ARABIC_FONT, 'normal');
           } catch {
             pdf.setFont('helvetica', 'normal');
           }

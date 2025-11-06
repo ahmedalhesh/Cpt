@@ -14,4 +14,9 @@ declare module '@/lib/fonts/Amiri-Regular-normal.js' {
   export default content;
 }
 
+declare module '@/lib/fonts/Cairo-Regular-normal.js' {
+  const content: any;
+  export default content;
+}
+
 

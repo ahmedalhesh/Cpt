@@ -164,15 +164,6 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-
-          <div className="mt-4 p-4 bg-blue-50 rounded-md">
-            <h3 className="text-sm font-medium text-blue-800 mb-2">Demo Credentials</h3>
-            <p className="text-xs text-blue-700">
-              Email: admin@airline.com<br />
-              Email: demo@airline.com<br />
-              Password: password123
-            </p>
-          </div>
         </Card>
 
         {/* Developer footer (login page) */}

@@ -21,21 +21,48 @@ export default function MessageCompose() {
   });
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [all, setAll] = useState(false);
+  // Audience selection: large scale friendly
+  const [audienceType, setAudienceType] = useState<"all" | "roles" | "users">("roles");
   const [roles, setRoles] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
 
-  const availableRoles = useMemo(() => Array.from(new Set((users || []).map(u => (u.role || '').toLowerCase()).filter(Boolean))), [users]);
+  const roleOptions = [
+    { value: "captain", label: "Captains" },
+    { value: "first_officer", label: "First Officers" },
+    { value: "under_training_captain", label: "Captains (Under Training)" },
+    { value: "under_training_first_officer", label: "First Officers (Under Training)" },
+    { value: "safety_officer", label: "Safety Officers" },
+    { value: "admin", label: "Admins" },
+  ];
+
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return (users || [])
+      .filter(u => {
+        const name = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        return name.includes(q) || email.includes(q);
+      })
+      .slice(0, 50);
+  }, [users, query]);
 
   const sendMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/messages", { subject, body, all, roles, recipients: selectedUsers });
+      const payload =
+        audienceType === "all"
+          ? { subject, body, all: true }
+          : audienceType === "roles"
+          ? { subject, body, roles }
+          : { subject, body, recipients: selectedUsers };
+      const res = await apiRequest("POST", "/api/messages", payload);
       if (!res.ok) throw new Error("Failed to send");
       return res.json();
     },
     onSuccess: (data) => {
       toast({ title: "Message sent", description: `Sent to ${data.recipients} recipient(s)` });
-      setSubject(""); setBody(""); setAll(false); setRoles([]); setSelectedUsers([]);
+      setSubject(""); setBody(""); setAudienceType("roles"); setRoles([]); setSelectedUsers([]); setQuery("");
     },
     onError: () => toast({ title: "Failed to send", variant: "destructive" }),
   });
@@ -54,49 +81,84 @@ export default function MessageCompose() {
           <label className="text-sm font-medium">Body</label>
           <Textarea rows={6} value={body} onChange={(e) => setBody(e.target.value)} />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="text-sm font-medium">Recipients</label>
-          <div className="flex flex-wrap gap-2 items-center">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+          <div className="flex items-center gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="audience" checked={audienceType === "all"} onChange={() => setAudienceType("all")} />
               All users
             </label>
-            <div className="flex items-center gap-2 text-sm">
-              <span>By roles:</span>
-              {availableRoles.map(r => (
-                <label key={r} className="flex items-center gap-1">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="audience" checked={audienceType === "roles"} onChange={() => setAudienceType("roles")} />
+              By roles
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="audience" checked={audienceType === "users"} onChange={() => setAudienceType("users")} />
+              Specific users
+            </label>
+          </div>
+          {audienceType === "roles" && (
+            <div className="flex flex-wrap gap-3 text-sm">
+              {roleOptions.map(opt => (
+                <label key={opt.value} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={roles.includes(r)}
-                    onChange={(e) => setRoles(prev => e.target.checked ? [...prev, r] : prev.filter(x => x !== r))}
+                    checked={roles.includes(opt.value)}
+                    onChange={(e) => setRoles(prev => e.target.checked ? [...prev, opt.value] : prev.filter(x => x !== opt.value))}
                   />
-                  {r.replace('_', ' ')}
+                  {opt.label}
                 </label>
               ))}
             </div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Or pick users:</div>
-            <div className="max-h-40 overflow-auto border rounded p-2">
-              {(users || []).map(u => {
-                const id = u.id;
-                const label = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || id);
-                const checked = selectedUsers.includes(id);
-                return (
-                  <label key={id} className="flex items-center gap-2 text-sm py-1">
-                    <input type="checkbox" checked={checked} onChange={(e) => {
-                      setSelectedUsers(prev => e.target.checked ? [...prev, id] : prev.filter(x => x !== id));
-                    }} />
-                    <span>{label}</span>
-                    <span className="text-xs text-muted-foreground">({u.role})</span>
-                  </label>
-                );
-              })}
+          )}
+          {audienceType === "users" && (
+            <div className="space-y-2">
+              <Input placeholder="Search users by name or email..." value={query} onChange={(e) => setQuery(e.target.value)} />
+              <div className="text-xs text-muted-foreground">Showing up to 50 results</div>
+              <div className="max-h-56 overflow-auto border rounded p-2">
+                {filteredUsers.map(u => {
+                  const id = u.id;
+                  const label = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || id);
+                  const checked = selectedUsers.includes(id);
+                  return (
+                    <label key={id} className="flex items-center gap-2 text-sm py-1">
+                      <input type="checkbox" checked={checked} onChange={(e) => {
+                        setSelectedUsers(prev => e.target.checked ? [...prev, id] : prev.filter(x => x !== id));
+                      }} />
+                      <span className="truncate">{label}</span>
+                      <span className="text-xs text-muted-foreground">({u.role})</span>
+                    </label>
+                  );
+                })}
+                {filteredUsers.length === 0 && <div className="text-sm text-muted-foreground py-2">Type to search users...</div>}
+              </div>
+              {selectedUsers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedUsers.map(id => {
+                    const u = (users || []).find(x => x.id === id);
+                    const label = u ? (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.email || id)) : id;
+                    return (
+                      <span key={id} className="px-2 py-1 rounded bg-muted text-xs">
+                        {label}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
         <div className="flex justify-end">
-          <Button onClick={() => sendMutation.mutate()} disabled={!subject || !body || sendMutation.isPending}>
+          <Button
+            onClick={() => sendMutation.mutate()}
+            disabled={
+              !subject ||
+              !body ||
+              sendMutation.isPending ||
+              (audienceType === "roles" && roles.length === 0) ||
+              (audienceType === "users" && selectedUsers.length === 0)
+            }
+          >
             {sendMutation.isPending ? "Sending..." : "Send"}
           </Button>
         </div>

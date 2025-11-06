@@ -19,6 +19,10 @@ import NewReportCDF from "@/pages/new-report-cdf";
 import NewReportCHR from "@/pages/new-report-chr";
 import NewReportCaptain from "@/pages/new-report-captain";
 import ReportDetail from "@/pages/report-detail";
+import MessagesInbox from "@/pages/messages-inbox";
+import MessagesSent from "@/pages/messages-sent";
+import MessageCompose from "@/pages/message-compose";
+import MessageDetail from "@/pages/message-detail";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
 import UsersManagement from "@/pages/users-management";
@@ -132,6 +136,10 @@ function AppContent() {
           <Route path="/" component={Dashboard} />
                 <Route path="/dashboard" component={Dashboard} />
           <Route path="/reports" component={ReportsList} />
+          <Route path="/messages" component={MessagesInbox} />
+          <Route path="/messages/sent" component={MessagesSent} />
+          <Route path="/messages/compose" component={MessageCompose} />
+          <Route path="/messages/:id" component={MessageDetail} />
           <Route path="/reports/new/asr" component={NewReportASR} />
           <Route path="/reports/new/or" component={NewReportOR} />
           <Route path="/reports/new/rir" component={NewReportRIR} />

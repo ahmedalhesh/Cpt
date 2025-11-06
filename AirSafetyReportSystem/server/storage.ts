@@ -19,9 +19,15 @@ import {
   type UpsertCompanySettings,
   type Notification,
   type UpsertNotification,
+  messages,
+  messageRecipients,
+  type Message,
+  type InsertMessage,
+  type MessageRecipient,
+  type InsertMessageRecipient,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -49,6 +55,15 @@ export interface IStorage {
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   getAttachment(id: string): Promise<Attachment | undefined>;
   getAttachmentsByReportId(reportId: string): Promise<Attachment[]>;
+
+  // Messaging operations
+  createMessage(message: InsertMessage): Promise<Message>;
+  addMessageRecipients(recipients: InsertMessageRecipient[]): Promise<void>;
+  getInbox(userId: string, opts?: { status?: string; limit?: number; offset?: number }): Promise<(MessageRecipient & { message: Message; sender: User })[]>;
+  getSentMessages(senderId: string, opts?: { limit?: number; offset?: number }): Promise<(Message & { recipientsCount: number; readCount: number })[]>;
+  getMessageForUser(messageId: string, userId: string): Promise<(Message & { sender: User; recipients: (MessageRecipient & { user: User })[] }) | undefined>;
+  markMessageRead(messageId: string, userId: string): Promise<void>;
+  getUnreadMessagesCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -474,6 +489,115 @@ export class DatabaseStorage implements IStorage {
       .from(attachments)
       .where(eq(attachments.reportId, reportId))
       .orderBy(attachments.createdAt);
+  }
+
+  // ======================
+  // Messaging operations
+  // ======================
+  async createMessage(messageData: InsertMessage): Promise<Message> {
+    const [msg] = await db.insert(messages).values(messageData).returning();
+    return msg;
+  }
+
+  async addMessageRecipients(recipients: InsertMessageRecipient[]): Promise<void> {
+    if (recipients.length === 0) return;
+    await db.insert(messageRecipients).values(recipients);
+  }
+
+  async getInbox(userId: string, opts?: { status?: string; limit?: number; offset?: number }): Promise<(MessageRecipient & { message: Message; sender: User })[]> {
+    const limit = opts?.limit ?? 20;
+    const offset = opts?.offset ?? 0;
+    // Filter by status unless 'all'
+    const conditions: any[] = [eq(messageRecipients.recipientId, userId)];
+    if (opts?.status && opts.status !== 'all') {
+      conditions.push(eq(messageRecipients.status, opts.status));
+    }
+    const rows = await db
+      .select({
+        mr: messageRecipients,
+        msg: messages,
+        sender: users,
+      })
+      .from(messageRecipients)
+      .leftJoin(messages, eq(messageRecipients.messageId, messages.id))
+      .leftJoin(users, eq(messages.senderId, users.id))
+      .where(and(...conditions))
+      .orderBy(desc(messageRecipients.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return rows.map(r => ({
+      ...r.mr,
+      message: r.msg as Message,
+      sender: r.sender as User,
+    }));
+  }
+
+  async getSentMessages(senderId: string, opts?: { limit?: number; offset?: number }): Promise<(Message & { recipientsCount: number; readCount: number })[]> {
+    const limit = opts?.limit ?? 20;
+    const offset = opts?.offset ?? 0;
+    const msgRows = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.senderId, senderId))
+      .orderBy(desc(messages.createdAt))
+      .limit(limit)
+      .offset(offset);
+    if (msgRows.length === 0) return [];
+    const ids = msgRows.map(m => m.id);
+    const recAgg = await db
+      .select({
+        messageId: messageRecipients.messageId,
+        total: sql<number>`count(*)`,
+        readCount: sql<number>`sum(case when ${messageRecipients.status} = 'read' then 1 else 0 end)`,
+      })
+      .from(messageRecipients)
+      .where(inArray(messageRecipients.messageId, ids))
+      .groupBy(messageRecipients.messageId);
+    const aggMap = new Map(recAgg.map(a => [a.messageId, a]));
+    return msgRows.map(m => {
+      const a = aggMap.get(m.id);
+      return {
+        ...m,
+        recipientsCount: a?.total ?? 0,
+        readCount: a?.readCount ?? 0,
+      };
+    });
+  }
+
+  async getMessageForUser(messageId: string, userId: string): Promise<(Message & { sender: User; recipients: (MessageRecipient & { user: User })[] }) | undefined> {
+    // Check if user is sender or recipient
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!msg) return undefined;
+    const isSender = msg.senderId === userId;
+    const isRecipient = (await db.select().from(messageRecipients)
+      .where(and(eq(messageRecipients.messageId, messageId), eq(messageRecipients.recipientId, userId)))).length > 0;
+    if (!isSender && !isRecipient) return undefined;
+    const [sender] = await db.select().from(users).where(eq(users.id, msg.senderId));
+    const recipientRows = await db
+      .select({ mr: messageRecipients, u: users })
+      .from(messageRecipients)
+      .leftJoin(users, eq(messageRecipients.recipientId, users.id))
+      .where(eq(messageRecipients.messageId, messageId));
+    return {
+      ...msg,
+      sender: sender as User,
+      recipients: recipientRows.map(r => ({ ...r.mr, user: r.u as User })) as any,
+    };
+  }
+
+  async markMessageRead(messageId: string, userId: string): Promise<void> {
+    await db
+      .update(messageRecipients)
+      .set({ status: 'read', readAt: new Date().toISOString() })
+      .where(and(eq(messageRecipients.messageId, messageId), eq(messageRecipients.recipientId, userId)));
+  }
+
+  async getUnreadMessagesCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(messageRecipients)
+      .where(and(eq(messageRecipients.recipientId, userId), eq(messageRecipients.status, 'unread')));
+    return result?.count ?? 0;
   }
 
   // Notification operations

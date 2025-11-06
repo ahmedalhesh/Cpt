@@ -50,6 +50,8 @@ export const notifications = sqliteTable("notifications", {
   type: text("type").notNull().default("info"), // info, warning, error, success
   isRead: integer("is_read").notNull().default(0), // 0 = false, 1 = true
   relatedReportId: text("related_report_id").references(() => reports.id, { onDelete: "set null" }), // Changed from cascade to set null - notifications should persist even if report is deleted
+  // Optional link to internal message
+  relatedMessageId: text("related_message_id").references(() => messages.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
@@ -267,3 +269,53 @@ export type ReportStats = {
   byType: Record<string, number>;
   byStatus: Record<string, number>;
 };
+
+// =========================
+// Internal Messaging System
+// =========================
+export const messages = sqliteTable("messages", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  senderId: text("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const messageRecipients = sqliteTable("message_recipients", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  messageId: text("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+  recipientId: text("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("unread"), // unread | read | deleted
+  readAt: text("read_at"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+}, (table) => {
+  return {
+    byRecipientStatus: index("idx_msg_recipient_status").on(table.recipientId, table.status, table.createdAt),
+    byMessage: index("idx_msg_message").on(table.messageId),
+  };
+});
+
+export const messagesRelations = relations(messages, ({ one, many }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+  recipients: many(messageRecipients),
+}));
+
+export const messageRecipientsRelations = relations(messageRecipients, ({ one }) => ({
+  message: one(messages, {
+    fields: [messageRecipients.messageId],
+    references: [messages.id],
+  }),
+  recipient: one(users, {
+    fields: [messageRecipients.recipientId],
+    references: [users.id],
+  }),
+}));
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
+export type MessageRecipient = typeof messageRecipients.$inferSelect;
+export type InsertMessageRecipient = typeof messageRecipients.$inferInsert;
+

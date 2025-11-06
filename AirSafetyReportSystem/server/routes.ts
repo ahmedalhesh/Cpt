@@ -389,6 +389,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ======================
+  // Internal Messaging API
+  // ======================
+  // Create message (admin only)
+  app.post("/api/messages", isAuthenticated, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const senderId = req.user.id;
+      const { subject, body, recipients = [], roles = [], all = false } = req.body || {};
+      if (!subject || !body) {
+        return res.status(400).json({ message: "Subject and body are required" });
+      }
+      // Resolve recipients
+      let recipientIds: string[] = [];
+      const allUsers = await storage.getAllUsers();
+      if (all) {
+        recipientIds = allUsers.filter(u => u.id !== senderId).map(u => u.id);
+      }
+      if (roles?.length) {
+        const byRoles = allUsers.filter(u => roles.includes((u.role || '').toLowerCase())).map(u => u.id);
+        recipientIds.push(...byRoles);
+      }
+      if (Array.isArray(recipients) && recipients.length) {
+        recipientIds.push(...recipients);
+      }
+      // unique and exclude sender
+      const unique = Array.from(new Set(recipientIds)).filter(id => id && id !== senderId);
+      if (unique.length === 0) {
+        return res.status(400).json({ message: "No recipients resolved" });
+      }
+      // Create message
+      const message = await storage.createMessage({ senderId, subject, body } as any);
+      // Add recipients
+      await storage.addMessageRecipients(unique.map(rid => ({ messageId: message.id, recipientId: rid } as any)));
+      // Create notifications
+      for (const rid of unique) {
+        await storage.createNotification({
+          userId: rid,
+          title: subject.slice(0, 80),
+          message: body.slice(0, 140),
+          type: 'message',
+          isRead: 0,
+          relatedMessageId: message.id,
+        });
+      }
+      res.status(201).json({ id: message.id, recipients: unique.length });
+    } catch (error: any) {
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: error?.message || "Failed to create message" });
+    }
+  });
+
+  // Inbox for current user
+  app.get("/api/messages/inbox", isAuthenticated, async (req: any, res) => {
+    try {
+      const status = (req.query.status as string) || 'all';
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const pageSize = parseInt((req.query.pageSize as string) || '20', 10);
+      const offset = (page - 1) * pageSize;
+      const items = await storage.getInbox(req.user.id, { status, limit: pageSize, offset });
+      res.json(items);
+    } catch (error: any) {
+      console.error("Error fetching inbox:", error);
+      res.status(500).json({ message: "Failed to fetch inbox" });
+    }
+  });
+
+  // Sent for admin
+  app.get("/api/messages/sent", isAuthenticated, requireRole(['admin']), async (req: any, res) => {
+    try {
+      const page = parseInt((req.query.page as string) || '1', 10);
+      const pageSize = parseInt((req.query.pageSize as string) || '20', 10);
+      const offset = (page - 1) * pageSize;
+      const items = await storage.getSentMessages(req.user.id, { limit: pageSize, offset });
+      res.json(items);
+    } catch (error: any) {
+      console.error("Error fetching sent:", error);
+      res.status(500).json({ message: "Failed to fetch sent messages" });
+    }
+  });
+
+  // Message detail
+  app.get("/api/messages/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const msg = await storage.getMessageForUser(req.params.id, req.user.id);
+      if (!msg) return res.status(404).json({ message: "Message not found" });
+      res.json(msg);
+    } catch (error: any) {
+      console.error("Error fetching message detail:", error);
+      res.status(500).json({ message: "Failed to fetch message" });
+    }
+  });
+
+  // Mark read
+  app.patch("/api/messages/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.markMessageRead(req.params.id, req.user.id);
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Error marking message as read:", error);
+      res.status(500).json({ message: "Failed to update message status" });
+    }
+  });
+
+  // Unread count
+  app.get("/api/messages/unread-count", isAuthenticated, async (req: any, res) => {
+    try {
+      const count = await storage.getUnreadMessagesCount(req.user.id);
+      res.json({ unread: count });
+    } catch (error: any) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
   // File attachment routes
   app.post("/api/attachments", isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {

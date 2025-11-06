@@ -78,6 +78,11 @@ export function AppSidebar() {
       icon: LayoutDashboard,
     },
     {
+      title: "Inbox",
+      url: "/messages",
+      icon: FileText,
+    },
+    {
       title: "Reports",
       url: "/reports",
       icon: FileText,
@@ -211,6 +216,22 @@ export function AppSidebar() {
             <SidebarGroupLabel>Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === '/messages/compose'}>
+                    <Link href="/messages/compose" data-testid="link-compose-message">
+                      <Plus className="h-4 w-4" />
+                      <span>Compose Message</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === '/messages/sent'}>
+                    <Link href="/messages/sent" data-testid="link-sent-messages">
+                      <FileText className="h-4 w-4" />
+                      <span>Sent Messages</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === '/users'}>
                     <Link href="/users" data-testid="link-users">

@@ -341,22 +341,28 @@ export default function ReportDetail() {
   const createPDF = async () => {
     if (!report) return null;
 
-    const jsPDF = (await import('jspdf')).default;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    // Import jsPDF first
+    const jsPDFModule = await import('jspdf');
+    const jsPDF = jsPDFModule.default;
     
-    // Try to load Arabic font if available (for NCR reports)
+    // Try to load Arabic font BEFORE creating PDF instance
     // The font file should be generated using jsPDF font converter
     // and placed in client/src/lib/fonts/Amiri-Regular-normal.js
     let arabicFontAvailable = false;
     try {
       // Dynamic import of Arabic font if it exists
+      // This registers the font via jsPDF.API.events
       await import('@/lib/fonts/Amiri-Regular-normal.js');
-      // Font is registered via jsPDF.API.events in the module
+      // Wait a bit to ensure font is registered
+      await new Promise(resolve => setTimeout(resolve, 200));
       arabicFontAvailable = true;
     } catch (error) {
       // Font not available, will use default font with arabic-reshaper
-      console.log('Arabic font not loaded, using default font with text processing');
+      console.log('Arabic font not loaded, using default font with text processing:', error);
     }
+    
+    // Create PDF instance AFTER font is loaded
+    const pdf = new jsPDF('p', 'mm', 'a4');
     
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
@@ -602,28 +608,54 @@ export default function ReportDetail() {
         pdf.rect(margin, yPosition, contentWidth, headerHeight, 'FD'); // Fill and Draw
         
         // Text (matching text-xs font-bold uppercase tracking-wide)
-        // For NCR reports, use Arabic fonts directly (no images)
+        // For NCR reports with Arabic text, use html2canvas to render as image
         pdf.setTextColor(0, 0, 0);
         pdf.setFontSize(9);
-        // Process Arabic text before adding to PDF
-        const processedText = isNCR ? processArabicText(text) : text;
         
-        // Try to use Arabic font if available, otherwise use helvetica
-        if (arabicFontAvailable) {
-          try {
-            pdf.setFont('Amiri-Regular', 'normal');
-          } catch {
+        // Check if text contains Arabic characters
+        const hasArabic = isNCR && /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+        
+        if (hasArabic) {
+          // Render Arabic text as image for NCR reports
+          const imageData = await renderArabicTextAsImage(text, 9, contentWidth - (padding * 2));
+          if (imageData) {
+            try {
+              const img = new Image();
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = imageData;
+              });
+              
+              const imgWidth = contentWidth - (padding * 2);
+              const imgHeight = Math.min((img.height / img.width) * imgWidth, headerHeight - 2);
+              
+              pdf.addImage(imageData, 'PNG', margin + padding, yPosition + 1, imgWidth, imgHeight);
+            } catch (error) {
+              console.error('Error adding Arabic text image:', error);
+              // Fallback to regular text
+              pdf.setFont('helvetica', 'bold');
+              const textLines = pdf.splitTextToSize(text, contentWidth - (padding * 2));
+              textLines.forEach((line: string, index: number) => {
+                pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
+              });
+            }
+          } else {
+            // Fallback to regular text
             pdf.setFont('helvetica', 'bold');
+            const textLines = pdf.splitTextToSize(text, contentWidth - (padding * 2));
+            textLines.forEach((line: string, index: number) => {
+              pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
+            });
           }
         } else {
+          // Regular text rendering for non-Arabic
           pdf.setFont('helvetica', 'bold');
+          const textLines = pdf.splitTextToSize(text, contentWidth - (padding * 2));
+          textLines.forEach((line: string, index: number) => {
+            pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
+          });
         }
-        
-        // Use splitTextToSize for Arabic text to handle wrapping
-        const textLines = pdf.splitTextToSize(processedText, contentWidth - (padding * 2));
-        textLines.forEach((line: string, index: number) => {
-          pdf.text(line, margin + padding, yPosition + 5 + (index * 3.5));
-        });
         
         yPosition += headerHeight + 5; // Add spacing after header
       };
@@ -656,46 +688,92 @@ export default function ReportDetail() {
           const xPos = margin + (i * (fieldWidth + fieldGap));
           let fieldY = startY;
           
-          // Label (text-xs text-muted-foreground) - For NCR, use Arabic fonts directly
+          // Label (text-xs text-muted-foreground) - For NCR with Arabic, use html2canvas
           pdf.setFontSize(8);
           pdf.setTextColor(115, 115, 115);
-          const processedLabel = isNCR ? processArabicText(field.label) : field.label;
-          // Try to use Arabic font if available
-          if (arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
+          const labelHasArabic = isNCR && /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(field.label);
+          
+          if (labelHasArabic) {
+            const labelImage = await renderArabicTextAsImage(field.label, 8, fieldWidth - 4);
+            if (labelImage) {
+              try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = labelImage;
+                });
+                const imgHeight = Math.min((img.height / img.width) * (fieldWidth - 4), 10);
+                pdf.addImage(labelImage, 'PNG', xPos, fieldY - imgHeight, fieldWidth - 4, imgHeight);
+                fieldY += imgHeight + 1;
+              } catch {
+                pdf.setFont('helvetica', 'normal');
+                const labelLines = pdf.splitTextToSize(field.label, fieldWidth - 4);
+                labelLines.forEach((line: string, idx: number) => {
+                  pdf.text(line, xPos, fieldY - (idx * 3.5));
+                });
+                fieldY += 3.5;
+              }
+            } else {
               pdf.setFont('helvetica', 'normal');
+              const labelLines = pdf.splitTextToSize(field.label, fieldWidth - 4);
+              labelLines.forEach((line: string, idx: number) => {
+                pdf.text(line, xPos, fieldY - (idx * 3.5));
+              });
+              fieldY += 3.5;
             }
           } else {
             pdf.setFont('helvetica', 'normal');
+            const labelLines = pdf.splitTextToSize(field.label, fieldWidth - 4);
+            labelLines.forEach((line: string, idx: number) => {
+              pdf.text(line, xPos, fieldY - (idx * 3.5));
+            });
+            fieldY += 3.5;
           }
-          const labelLines = pdf.splitTextToSize(processedLabel, fieldWidth - 4);
-          labelLines.forEach((line: string, idx: number) => {
-            pdf.text(line, xPos, fieldY - (idx * 3.5));
-          });
-          fieldY += 3.5;
           
-          // Value (text-sm font-medium) - For NCR, use Arabic fonts directly
+          // Value (text-sm font-medium) - For NCR with Arabic, use html2canvas
           const valueStr = field.value.toString();
-          const processedValue = isNCR ? processArabicText(valueStr) : valueStr;
+          const valueHasArabic = isNCR && /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(valueStr);
           pdf.setFontSize(9);
           pdf.setTextColor(0, 0, 0);
-          // Try to use Arabic font if available
-          if (arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
+          
+          if (valueHasArabic) {
+            const valueImage = await renderArabicTextAsImage(valueStr, 9, fieldWidth - 4);
+            if (valueImage) {
+              try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = valueImage;
+                });
+                const imgHeight = Math.min((img.height / img.width) * (fieldWidth - 4), 30);
+                pdf.addImage(valueImage, 'PNG', xPos, fieldY, fieldWidth - 4, imgHeight);
+                fieldY += imgHeight + 2;
+              } catch {
+                pdf.setFont('helvetica', 'medium');
+                const valueLines = pdf.splitTextToSize(valueStr, fieldWidth - 4);
+                valueLines.forEach((line: string, idx: number) => {
+                  pdf.text(line, xPos, fieldY + (idx * 3.5));
+                });
+                fieldY += valueLines.length * 3.5;
+              }
+            } else {
               pdf.setFont('helvetica', 'medium');
+              const valueLines = pdf.splitTextToSize(valueStr, fieldWidth - 4);
+              valueLines.forEach((line: string, idx: number) => {
+                pdf.text(line, xPos, fieldY + (idx * 3.5));
+              });
+              fieldY += valueLines.length * 3.5;
             }
           } else {
             pdf.setFont('helvetica', 'medium');
+            const valueLines = pdf.splitTextToSize(valueStr, fieldWidth - 4);
+            valueLines.forEach((line: string, idx: number) => {
+              pdf.text(line, xPos, fieldY + (idx * 3.5));
+            });
+            fieldY += valueLines.length * 3.5;
           }
-          const valueLines = pdf.splitTextToSize(processedValue, fieldWidth - 4);
-          valueLines.forEach((line: string, idx: number) => {
-            pdf.text(line, xPos, fieldY + (idx * 3.5));
-          });
-          fieldY += valueLines.length * 3.5;
           
           maxY = Math.max(maxY, fieldY);
         }
@@ -714,46 +792,92 @@ export default function ReportDetail() {
           
           const startY = yPosition;
           
-          // Label - For NCR, use Arabic fonts directly
+          // Label - For NCR with Arabic, use html2canvas
           pdf.setFontSize(8);
           pdf.setTextColor(115, 115, 115);
-          const processedLabel = processArabicText(label);
-          // Try to use Arabic font if available
-          if (arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
+          const labelHasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(label);
+          
+          if (labelHasArabic) {
+            const labelImage = await renderArabicTextAsImage(label, 8, contentWidth - 4);
+            if (labelImage) {
+              try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = labelImage;
+                });
+                const imgHeight = Math.min((img.height / img.width) * (contentWidth - 4), 10);
+                pdf.addImage(labelImage, 'PNG', margin, startY - imgHeight, contentWidth - 4, imgHeight);
+                yPosition = startY + 1;
+              } catch {
+                pdf.setFont('helvetica', 'normal');
+                const labelLines = pdf.splitTextToSize(label, contentWidth - 4);
+                labelLines.forEach((line: string, idx: number) => {
+                  pdf.text(line, margin, startY - (idx * 3.5));
+                });
+                yPosition = startY + 3.5;
+              }
+            } else {
               pdf.setFont('helvetica', 'normal');
+              const labelLines = pdf.splitTextToSize(label, contentWidth - 4);
+              labelLines.forEach((line: string, idx: number) => {
+                pdf.text(line, margin, startY - (idx * 3.5));
+              });
+              yPosition = startY + 3.5;
             }
           } else {
             pdf.setFont('helvetica', 'normal');
+            const labelLines = pdf.splitTextToSize(label, contentWidth - 4);
+            labelLines.forEach((line: string, idx: number) => {
+              pdf.text(line, margin, startY - (idx * 3.5));
+            });
+            yPosition = startY + 3.5;
           }
-          const labelLines = pdf.splitTextToSize(processedLabel, contentWidth - 4);
-          labelLines.forEach((line: string, idx: number) => {
-            pdf.text(line, margin, startY - (idx * 3.5));
-          });
-          yPosition = startY + 3.5;
           
-          // Value - For NCR, use Arabic fonts directly
+          // Value - For NCR with Arabic, use html2canvas
           const valueStr = value.toString();
-          const processedValue = processArabicText(valueStr);
+          const valueHasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(valueStr);
           pdf.setFontSize(9);
           pdf.setTextColor(0, 0, 0);
-          // Try to use Arabic font if available
-          if (arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
+          
+          if (valueHasArabic) {
+            const valueImage = await renderArabicTextAsImage(valueStr, 9, contentWidth - 4);
+            if (valueImage) {
+              try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = valueImage;
+                });
+                const imgHeight = Math.min((img.height / img.width) * (contentWidth - 4), 50);
+                pdf.addImage(valueImage, 'PNG', margin, yPosition, contentWidth - 4, imgHeight);
+                yPosition += imgHeight + 4;
+              } catch {
+                pdf.setFont('helvetica', 'medium');
+                const valueLines = pdf.splitTextToSize(valueStr, contentWidth - 4);
+                valueLines.forEach((line: string) => {
+                  pdf.text(line, margin, yPosition);
+                  yPosition += 3.5;
+                });
+              }
+            } else {
               pdf.setFont('helvetica', 'medium');
+              const valueLines = pdf.splitTextToSize(valueStr, contentWidth - 4);
+              valueLines.forEach((line: string) => {
+                pdf.text(line, margin, yPosition);
+                yPosition += 3.5;
+              });
             }
           } else {
             pdf.setFont('helvetica', 'medium');
+            const valueLines = pdf.splitTextToSize(valueStr, contentWidth - 4);
+            valueLines.forEach((line: string) => {
+              pdf.text(line, margin, yPosition);
+              yPosition += 3.5;
+            });
           }
-          const valueLines = pdf.splitTextToSize(processedValue, contentWidth - 4);
-          valueLines.forEach((line: string) => {
-            pdf.text(line, margin, yPosition);
-            yPosition += 3.5;
-          });
           
           yPosition += 4;
           return;
@@ -774,43 +898,106 @@ export default function ReportDetail() {
         
         checkNewPage(20);
         
-        // Label - For NCR, use Arabic fonts directly
+        // Label - For NCR with Arabic, use html2canvas
         pdf.setFontSize(8);
         pdf.setTextColor(115, 115, 115);
-        const processedLabel = processArabicText(label);
-        // Try to use Arabic font if available
-        try {
-          pdf.setFont('ArabicFont', 'normal');
-        } catch {
-          pdf.setFont('helvetica', 'normal');
-        }
-        const labelLines = pdf.splitTextToSize(processedLabel, contentWidth - 8);
-        labelLines.forEach((line: string, idx: number) => {
-          pdf.text(line, margin, yPosition - (idx * 3.5));
-        });
-        yPosition += 4;
+        const labelHasArabic = isNCR && /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(label);
         
-        // Text box with background (bg-muted/50) - For NCR, use Arabic fonts directly
+        if (labelHasArabic) {
+          const labelImage = await renderArabicTextAsImage(label, 8, contentWidth - 8);
+          if (labelImage) {
+            try {
+              const img = new Image();
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = labelImage;
+              });
+              const imgHeight = Math.min((img.height / img.width) * (contentWidth - 8), 10);
+              pdf.addImage(labelImage, 'PNG', margin, yPosition - imgHeight, contentWidth - 8, imgHeight);
+              yPosition += 4;
+            } catch {
+              pdf.setFont('helvetica', 'normal');
+              const labelLines = pdf.splitTextToSize(label, contentWidth - 8);
+              labelLines.forEach((line: string, idx: number) => {
+                pdf.text(line, margin, yPosition - (idx * 3.5));
+              });
+              yPosition += 4;
+            }
+          } else {
+            pdf.setFont('helvetica', 'normal');
+            const labelLines = pdf.splitTextToSize(label, contentWidth - 8);
+            labelLines.forEach((line: string, idx: number) => {
+              pdf.text(line, margin, yPosition - (idx * 3.5));
+            });
+            yPosition += 4;
+          }
+        } else {
+          pdf.setFont('helvetica', 'normal');
+          const labelLines = pdf.splitTextToSize(label, contentWidth - 8);
+          labelLines.forEach((line: string, idx: number) => {
+            pdf.text(line, margin, yPosition - (idx * 3.5));
+          });
+          yPosition += 4;
+        }
+        
+        // Text box with background (bg-muted/50) - For NCR with Arabic, use html2canvas
         pdf.setFillColor(250, 250, 250); // bg-muted/50
         pdf.setDrawColor(230, 230, 230); // border
         pdf.setLineWidth(0.1);
-        const processedText = processArabicText(text);
-        const textLines = pdf.splitTextToSize(processedText, contentWidth - 14);
-        const boxHeight = Math.min(textLines.length * 3.5 + 6, 50);
-        pdf.roundedRect(margin, yPosition, contentWidth - 8, boxHeight, 2, 2, 'FD');
+        const textHasArabic = isNCR && /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
         
-        pdf.setFontSize(9);
-        pdf.setTextColor(0, 0, 0);
-        // Try to use Arabic font if available
-        try {
-          pdf.setFont('ArabicFont', 'normal');
-        } catch {
+        if (textHasArabic) {
+          const textImage = await renderArabicTextAsImage(text, 9, contentWidth - 14);
+          if (textImage) {
+            try {
+              const img = new Image();
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = textImage;
+              });
+              const imgHeight = Math.min((img.height / img.width) * (contentWidth - 14), 50);
+              const boxHeight = imgHeight + 6;
+              pdf.roundedRect(margin, yPosition, contentWidth - 8, boxHeight, 2, 2, 'FD');
+              pdf.addImage(textImage, 'PNG', margin + 3, yPosition + 3, contentWidth - 14, imgHeight);
+              yPosition += boxHeight + 4;
+            } catch {
+              pdf.setFontSize(9);
+              pdf.setTextColor(0, 0, 0);
+              pdf.setFont('helvetica', 'normal');
+              const textLines = pdf.splitTextToSize(text, contentWidth - 14);
+              const boxHeight = Math.min(textLines.length * 3.5 + 6, 50);
+              pdf.roundedRect(margin, yPosition, contentWidth - 8, boxHeight, 2, 2, 'FD');
+              textLines.forEach((line: string, idx: number) => {
+                pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
+              });
+              yPosition += boxHeight + 4;
+            }
+          } else {
+            pdf.setFontSize(9);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFont('helvetica', 'normal');
+            const textLines = pdf.splitTextToSize(text, contentWidth - 14);
+            const boxHeight = Math.min(textLines.length * 3.5 + 6, 50);
+            pdf.roundedRect(margin, yPosition, contentWidth - 8, boxHeight, 2, 2, 'FD');
+            textLines.forEach((line: string, idx: number) => {
+              pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
+            });
+            yPosition += boxHeight + 4;
+          }
+        } else {
+          pdf.setFontSize(9);
+          pdf.setTextColor(0, 0, 0);
           pdf.setFont('helvetica', 'normal');
+          const textLines = pdf.splitTextToSize(text, contentWidth - 14);
+          const boxHeight = Math.min(textLines.length * 3.5 + 6, 50);
+          pdf.roundedRect(margin, yPosition, contentWidth - 8, boxHeight, 2, 2, 'FD');
+          textLines.forEach((line: string, idx: number) => {
+            pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
+          });
+          yPosition += boxHeight + 4;
         }
-        textLines.forEach((line: string, idx: number) => {
-          pdf.text(line, margin + 3, yPosition + 3 + (idx * 3.5));
-        });
-        yPosition += boxHeight + 4;
       };
 
       // Helper function to render ASR plot with scales to image using html2canvas
@@ -1235,59 +1422,23 @@ export default function ReportDetail() {
       // Company Name and Report Type
       pdf.setTextColor(0, 0, 0);
       pdf.setFontSize(14);
-      // Use Arabic font for NCR reports
-      if (report.reportType === 'ncr' && arabicFontAvailable) {
-        try {
-          pdf.setFont('Amiri-Regular', 'normal');
-        } catch {
-          pdf.setFont('helvetica', 'bold');
-        }
-      } else {
-        pdf.setFont('helvetica', 'bold');
-      }
+      pdf.setFont('helvetica', 'bold');
       pdf.text(companySettings?.companyName || 'Report Sys', margin + (companySettings?.logo ? 18 : 0), yPosition + 5);
       
       pdf.setFontSize(10);
-      // Use Arabic font for NCR reports
-      if (report.reportType === 'ncr' && arabicFontAvailable) {
-        try {
-          pdf.setFont('Amiri-Regular', 'normal');
-        } catch {
-          pdf.setFont('helvetica', 'normal');
-        }
-      } else {
-        pdf.setFont('helvetica', 'normal');
-      }
+      pdf.setFont('helvetica', 'normal');
       const reportTypeDisplay = report.reportType.toLowerCase() === 'cdf' ? 'CDR' : report.reportType.toUpperCase();
       pdf.text(`${reportTypeDisplay} Report`, margin + (companySettings?.logo ? 18 : 0), yPosition + 10);
       
       // Right side: Report ID, Date, Status
       pdf.setFontSize(8);
       pdf.setTextColor(60, 60, 60);
-      // Use Arabic font for NCR reports
-      if (report.reportType === 'ncr' && arabicFontAvailable) {
-        try {
-          pdf.setFont('Amiri-Regular', 'normal');
-        } catch {
-          pdf.setFont('helvetica', 'normal');
-        }
-      } else {
-        pdf.setFont('helvetica', 'normal');
-      }
+      pdf.setFont('helvetica', 'normal');
       pdf.text(`Report ID: #${report.id.slice(0, 5).toUpperCase()}`, pageWidth - margin, yPosition + 3, { align: 'right' });
       if (report.createdAt) {
         pdf.text(`Date: ${formatDateTimeToDDMMYYYYHHMM(report.createdAt)}`, pageWidth - margin, yPosition + 7, { align: 'right' });
       }
-      // Use Arabic font for NCR reports
-      if (report.reportType === 'ncr' && arabicFontAvailable) {
-        try {
-          pdf.setFont('Amiri-Regular', 'normal');
-        } catch {
-          pdf.setFont('helvetica', 'bold');
-        }
-      } else {
-        pdf.setFont('helvetica', 'bold');
-      }
+      pdf.setFont('helvetica', 'bold');
       pdf.text(`Status: ${report.status.toUpperCase().replace('_', ' ')}`, pageWidth - margin, yPosition + 11, { align: 'right' });
       
       yPosition += 18;
@@ -2510,16 +2661,7 @@ export default function ReportDetail() {
           // User name
           pdf.setFontSize(8);
           pdf.setTextColor(0, 0, 0);
-          // Use Arabic font for NCR reports
-          if (report.reportType === 'ncr' && arabicFontAvailable) {
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
-              pdf.setFont('helvetica', 'bold');
-            }
-          } else {
-            pdf.setFont('helvetica', 'bold');
-          }
+          pdf.setFont('helvetica', 'bold');
           const userName = comment.user?.firstName && comment.user?.lastName
             ? `${comment.user.firstName} ${comment.user.lastName}`
             : comment.user?.email || 'Unknown';
@@ -2527,38 +2669,52 @@ export default function ReportDetail() {
           
           // Timestamp
           if (comment.createdAt) {
-            // Use Arabic font for NCR reports
-            if (report.reportType === 'ncr' && arabicFontAvailable) {
-              try {
-                pdf.setFont('Amiri-Regular', 'normal');
-              } catch {
-                pdf.setFont('helvetica', 'normal');
-              }
-            } else {
-              pdf.setFont('helvetica', 'normal');
-            }
+            pdf.setFont('helvetica', 'normal');
             pdf.setTextColor(100, 100, 100);
             pdf.text(formatDateTimeToDDMMYYYYHHMM(comment.createdAt), pageWidth - margin - 40, yPosition + 5);
           }
           
-          // Comment content - handle Arabic text for NCR reports
+          // Comment content - handle Arabic text for NCR reports using html2canvas
           const commentStartY = yPosition + 10;
           const isNCRComment = report.reportType === 'ncr';
-          if (isNCRComment && arabicFontAvailable) {
-            // For NCR reports, use Arabic font directly with text processing
-            pdf.setFontSize(9);
-            pdf.setTextColor(0, 0, 0);
-            try {
-              pdf.setFont('Amiri-Regular', 'normal');
-            } catch {
+          if (isNCRComment && hasArabicChars(comment.content)) {
+            // For NCR reports with Arabic, use html2canvas
+            const imageData = await renderArabicTextAsImage(comment.content, 9, contentWidth - 6);
+            if (imageData) {
+              try {
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = imageData;
+                });
+                const imgWidth = contentWidth - 6;
+                const imgHeight = Math.min((img.height / img.width) * imgWidth, totalCommentHeight - 12);
+                pdf.addImage(imageData, 'PNG', margin + 2, commentStartY, imgWidth, imgHeight);
+                yPosition += totalCommentHeight + 3;
+              } catch (error) {
+                console.error('Error adding Arabic comment image:', error);
+                // Fallback to regular text rendering
+                pdf.setFontSize(9);
+                pdf.setTextColor(0, 0, 0);
+                pdf.setFont('helvetica', 'normal');
+                const commentLines = pdf.splitTextToSize(comment.content, contentWidth - 6);
+                commentLines.forEach((line: string, lineIndex: number) => {
+                  pdf.text(line, margin + 2, commentStartY + (lineIndex * 4));
+                });
+                yPosition += totalCommentHeight + 3;
+              }
+            } else {
+              // Fallback if image rendering failed
+              pdf.setFontSize(9);
+              pdf.setTextColor(0, 0, 0);
               pdf.setFont('helvetica', 'normal');
+              const commentLines = pdf.splitTextToSize(comment.content, contentWidth - 6);
+              commentLines.forEach((line: string, lineIndex: number) => {
+                pdf.text(line, margin + 2, commentStartY + (lineIndex * 4));
+              });
+              yPosition += totalCommentHeight + 3;
             }
-            const processedComment = processArabicText(comment.content);
-            const commentLines = pdf.splitTextToSize(processedComment, contentWidth - 6);
-            commentLines.forEach((line: string, lineIndex: number) => {
-              pdf.text(line, margin + 2, commentStartY + (lineIndex * 4));
-            });
-            yPosition += totalCommentHeight + 3;
           } else if (hasArabicChars(comment.content)) {
             // Render Arabic text as image for non-NCR reports
             const imageData = await renderArabicTextAsImage(comment.content, 9, contentWidth - 6);
@@ -2624,16 +2780,17 @@ export default function ReportDetail() {
         // Footer text (small, gray)
         pdf.setFontSize(7);
         pdf.setTextColor(120, 120, 120);
-        // Use Arabic font for NCR reports
-        if (report.reportType === 'ncr' && arabicFontAvailable) {
-          try {
-            pdf.setFont('Amiri-Regular', 'normal');
-          } catch {
+          // Use Arabic font for NCR reports
+          if (report.reportType === 'ncr' && arabicFontAvailable) {
+            try {
+              pdf.setFont('Amiri-Regular', 'normal');
+            } catch (e) {
+              console.warn('Failed to set Amiri-Regular font in comments, using helvetica:', e);
+              pdf.setFont('helvetica', 'normal');
+            }
+          } else {
             pdf.setFont('helvetica', 'normal');
           }
-        } else {
-          pdf.setFont('helvetica', 'normal');
-        }
         pdf.text(`Generated on ${formatDateTimeToDDMMYYYYHHMMSS(new Date())}`, margin, pageHeight - 8);
         
         // Page number

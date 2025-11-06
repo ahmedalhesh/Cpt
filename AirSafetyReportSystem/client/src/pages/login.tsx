@@ -179,14 +179,14 @@ export default function Login() {
         <div className="text-center mt-6 text-xs sm:text-sm text-muted-foreground">
           <div>© {currentYear} All rights reserved.</div>
           <div className="mt-1 font-medium">Developed by Ahmed H. Alhesh</div>
-          <div className="mt-1">Inspired by Capt. Shams Eddin M. Bzeek</div>
-          <div className="flex flex-col items-center justify-center gap-2 sm:gap-4">
+          {/* Phones directly under Developed by */}
+          <div className="flex flex-col items-center justify-center gap-2 sm:gap-4 mt-1">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
               <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>
               <a href="tel:+218913402222" className="hover:underline">+218 91 340 2222</a>
             </div>
-            <a href="mailto:ahmed.alhesh@gmail.com" className="hover:underline">ahmed.alhesh@gmail.com</a>
           </div>
+          <div className="mt-1">Inspired by Capt. Shams Eddin M. Bzeek</div>
         </div>
       </div>
     </div>

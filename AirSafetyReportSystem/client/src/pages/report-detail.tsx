@@ -368,17 +368,15 @@ export default function ReportDetail() {
       };
 
       // Helper function to add text with word wrap (black/white only)
-      // NCR: render Arabic as real text using Amiri (no images)
+      // Global Arabic support: use Amiri for any Arabic content across all report types
       const addText = async (text: string, fontSize: number, isBold: boolean = false): Promise<number> => {
-        const isNCR = report.reportType === 'ncr';
         const containsArabic = hasArabicChars(text);
 
         pdf.setFontSize(fontSize);
         pdf.setTextColor(0, 0, 0);
 
-        if (isNCR && (containsArabic || arabicFontAvailable)) {
+        if (containsArabic) {
           const processed = processArabicText(text);
-          // Try to use Amiri for Arabic
           if (arabicFontAvailable) {
             try {
               pdf.setFont('Amiri-Regular', 'normal');
@@ -400,7 +398,7 @@ export default function ReportDetail() {
           return lines.length * lineHeight;
         }
 
-        // Non-NCR (or non-Arabic): default rendering
+        // Non-Arabic: default rendering
         pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
         const lines = pdf.splitTextToSize(text, contentWidth);
         const lineHeight = fontSize * 0.4;
@@ -2493,11 +2491,11 @@ export default function ReportDetail() {
             pdf.text(formatDateTimeToDDMMYYYYHHMM(comment.createdAt), pageWidth - margin - 40, yPosition + 5);
           }
           
-          // Comment content - handle Arabic text for NCR reports
+          // Comment content - render Arabic correctly for ALL report types
           const commentStartY = yPosition + 10;
-          const isNCRComment = report.reportType === 'ncr';
-          if (isNCRComment && arabicFontAvailable) {
-            // For NCR reports, use Arabic font directly with text processing
+          const containsArabicInComment = hasArabicChars(comment.content);
+          if (containsArabicInComment) {
+            // Use Arabic font with shaping
             pdf.setFontSize(9);
             pdf.setTextColor(0, 0, 0);
             try {

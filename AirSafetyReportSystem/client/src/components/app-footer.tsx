@@ -10,9 +10,9 @@ export function AppFooter() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <span className="font-medium">Ahmed .H Alhesh</span>
-          <a href="mailto:ahmed.alhesh@gmaul.com" className="hover:underline">ahmed.alhesh@gmaul.com</a>
-          <a href="tel:+218913402222" className="hover:underline">+218913402222</a>
-          <a href="tel:+4808646686" className="hover:underline">+4808646686</a>
+          <a href="mailto:ahmed.alhesh@gmail.com" className="hover:underline">ahmed.alhesh@gmail.com</a>
+          <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>
+          <a href="tel:+218913402222" className="hover:underline">+218 91 340 2222</a>
         </div>
       </div>
     </footer>

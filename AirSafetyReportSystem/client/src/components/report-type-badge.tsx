@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-type ReportType = "asr" | "or" | "rir" | "ncr" | "cdf" | "chr";
+type ReportType = "asr" | "or" | "rir" | "ncr" | "cdf" | "chr" | "captain";
 
 const reportTypeLabels: Record<ReportType, string> = {
   asr: "Air Safety Report",
@@ -9,6 +9,7 @@ const reportTypeLabels: Record<ReportType, string> = {
   ncr: "Nonconformity",
   cdf: "Commander's Discretion",
   chr: "Hazard Report",
+  captain: "CR",
 };
 
 const reportTypeShortLabels: Record<ReportType, string> = {
@@ -16,8 +17,9 @@ const reportTypeShortLabels: Record<ReportType, string> = {
   or: "OR",
   rir: "RIR",
   ncr: "NCR",
-  cdf: "CDF",
+  cdf: "CDR",
   chr: "CHR",
+  captain: "CR",
 };
 
 interface ReportTypeBadgeProps {

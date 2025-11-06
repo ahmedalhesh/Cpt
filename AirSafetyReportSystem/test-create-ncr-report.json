@@ -1,7 +1,0 @@
-{
-  "reportType": "ncr",
-  "status": "submitted",
-  "isAnonymous": false,
-  "description": "Test NCR Report from API",
-  "extraData": "{\"generalInfo\":{\"department\":\"Maintenance\",\"nonconformityType\":\"Equipment Failure\",\"rootCause\":\"Wear and tear\",\"responsiblePerson\":\"John Doe\",\"preventiveActions\":\"Regular maintenance schedule\"},\"sources\":[\"Equipment inspection\"],\"recommendations\":[\"Replace worn parts\",\"Increase inspection frequency\"]}"
-}

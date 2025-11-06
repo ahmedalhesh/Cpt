@@ -19,6 +19,7 @@ import {
   Calendar,
   UserCheck,
 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -265,7 +266,7 @@ export default function Profile() {
                 <div>
                   <p className="text-sm font-medium">Member Since</p>
                   <p className="text-sm text-muted-foreground">
-                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                    {user?.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'Unknown'}
                   </p>
                 </div>
               </div>

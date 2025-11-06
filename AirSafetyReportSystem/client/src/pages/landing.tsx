@@ -134,9 +134,13 @@ export default function Landing() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Report Sys</span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} All rights reserved.
-            </p>
+            <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 text-sm text-muted-foreground">
+              <p>© {new Date().getFullYear()} All rights reserved.</p>
+              <div className="flex items-center gap-3">
+                <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>
+                <a href="tel:+218913402222" className="hover:underline">+218 91 340 2222</a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

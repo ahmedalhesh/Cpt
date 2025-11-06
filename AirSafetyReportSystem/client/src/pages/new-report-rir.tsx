@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useMemo, useState, Fragment } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,19 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { TimeInput24 } from "@/components/ui/time-input-24";
+import { DateInputDDMMYYYY } from "@/components/ui/date-input-ddmmyyyy";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
  
 
 const personSchema = z.object({
@@ -122,8 +135,10 @@ export default function NewReportRIR() {
   const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
 
-  const { register, control, handleSubmit, watch, formState: { isSubmitting } } = useForm<FormData>({
+  const { register, control, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { personnel: [{}, {}, {}] },
   });
@@ -220,11 +235,17 @@ export default function NewReportRIR() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm">Date</label>
-                    <Input type="date" {...register('date')} />
+                    <DateInputDDMMYYYY
+                      value={watch('date')}
+                      onChange={(val) => setValue('date', val)}
+                    />
                   </div>
                   <div>
                     <label className="text-sm">Time of occurrence</label>
-                    <Input type="time" {...register('timeOfOccurrence')} />
+                    <TimeInput24
+                      value={watch('timeOfOccurrence')}
+                      onChange={(val) => setValue('timeOfOccurrence', val)}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -270,7 +291,21 @@ export default function NewReportRIR() {
                   </div>
                   <div>
                     <label className="text-sm">Flight Cancelled (Yes/No)</label>
-                    <Input placeholder="yes/no" {...register('flightCancelled')} />
+                    <Controller
+                      name="flightCancelled"
+                      control={control}
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value || undefined}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select yes/no" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Yes</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                   </div>
                 </div>
               </div>
@@ -315,10 +350,48 @@ export default function NewReportRIR() {
             {/* Vehicle/Ramp Eq details */}
             <Card className="p-4 space-y-3">
               <div className="font-medium">Vehicle/Ramp Equipment Details and Condition</div>
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 text-xs sm:text-sm items-center">
-                <div className="col-span-2"></div>
-                <div className="text-center">Serviceable</div>
-                <div className="text-center">Faulty</div>
+              
+              {/* Desktop/Tablet View: Table Layout */}
+              <div className="hidden sm:block overflow-x-auto">
+                <div className="min-w-full grid grid-cols-4 gap-3 text-sm items-center">
+                  <div className="col-span-2 font-medium">Equipment Item Name</div>
+                  <div className="text-center font-medium">Serviceable</div>
+                  <div className="text-center font-medium">Faulty</div>
+                  {[
+                    ['Tires','tiresSvc','tiresFault'],
+                    ['Brakes','brakesSvc','brakesFault'],
+                    ['Steering','steeringSvc','steeringFault'],
+                    ['Lights','lightsSvc','lightsFault'],
+                    ['Wipers','wipersSvc','wipersFault'],
+                    ['Protection','protectionSvc','protectionFault'],
+                    ['Warning Devices','warningSvc','warningFault'],
+                    ['Stabilizers','stabilizersSvc','stabilizersFault'],
+                    ['Tow Hitch','towHitchSvc','towHitchFault'],
+                    ['Field of Vision from Driving Position','fieldVisionSvc','fieldVisionFault'],
+                  ].map(([label, svc, flt], idx) => (
+                    <Fragment key={idx}>
+                      <div className="col-span-2 text-sm">{label}</div>
+                      <div className="flex justify-center">
+                        <input 
+                          type="checkbox" 
+                          {...register(svc as any)} 
+                          className="h-4 w-4"
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <input 
+                          type="checkbox" 
+                          {...register(flt as any)} 
+                          className="h-4 w-4"
+                        />
+                      </div>
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mobile View: Card Layout */}
+              <div className="sm:hidden space-y-3">
                 {[
                   ['Tires','tiresSvc','tiresFault'],
                   ['Brakes','brakesSvc','brakesFault'],
@@ -330,12 +403,28 @@ export default function NewReportRIR() {
                   ['Stabilizers','stabilizersSvc','stabilizersFault'],
                   ['Tow Hitch','towHitchSvc','towHitchFault'],
                   ['Field of Vision from Driving Position','fieldVisionSvc','fieldVisionFault'],
-                ].map(([label, svc, flt]) => (
-                  <>
-                    <div className="col-span-2">{label}</div>
-                    <div className="flex justify-center"><input type="checkbox" {...register(svc as any)} /></div>
-                    <div className="flex justify-center"><input type="checkbox" {...register(flt as any)} /></div>
-                  </>
+                ].map(([label, svc, flt], idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 border border-border rounded-md">
+                    <span className="text-sm font-medium flex-1 pr-2">{label}</span>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-1 text-xs">
+                        <input 
+                          type="checkbox" 
+                          {...register(svc as any)} 
+                          className="h-4 w-4"
+                        />
+                        <span>Serviceable</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-xs">
+                        <input 
+                          type="checkbox" 
+                          {...register(flt as any)} 
+                          className="h-4 w-4"
+                        />
+                        <span>Faulty</span>
+                      </label>
+                    </div>
+                  </div>
                 ))}
               </div>
 
@@ -469,11 +558,44 @@ export default function NewReportRIR() {
           </Card>
 
           <div className="flex justify-center sm:justify-end">
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8">
+            <Button 
+              type="button" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto px-8"
+              onClick={handleSubmit((data) => {
+                setPendingSubmit(() => () => onSubmit(data));
+                setShowConfirmDialog(true);
+              })}
+            >
               {isSubmitting ? 'Submitting...' : 'Submit RIR'}
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to submit this Ramp Incident Report (RIR)? The report will be saved and submitted to the system.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  if (pendingSubmit) {
+                    pendingSubmit();
+                    setPendingSubmit(null);
+                  }
+                }}
+              >
+                Confirm Submit
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

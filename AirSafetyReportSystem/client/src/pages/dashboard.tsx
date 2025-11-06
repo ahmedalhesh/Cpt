@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { StatCard } from "@/components/stat-card";
@@ -21,6 +21,7 @@ import type { ReportStats } from "@shared/schema";
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -40,6 +41,7 @@ export default function Dashboard() {
     queryKey: ["/api/reports/stats"],
   });
 
+
   if (authLoading || !isAuthenticated) {
     return null;
   }
@@ -49,15 +51,19 @@ export default function Dashboard() {
       <div className="container max-w-7xl mx-auto p-3 sm:p-4 lg:p-6 xl:p-8">
         {/* Header - Responsive */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
-            {user?.role === 'admin' ? 'Admin Dashboard' : 'My Dashboard'}
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            {user?.role === 'admin' 
-              ? 'Overview of all aviation safety reports and system activity'
-              : 'Overview of your submitted reports and their status'
-            }
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
+                {user?.role === 'admin' ? 'Admin Dashboard' : 'My Dashboard'}
+              </h1>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                {user?.role === 'admin' 
+                  ? 'Overview of all aviation safety reports and system activity'
+                  : 'Overview of your submitted reports and their status'
+                }
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Stats Grid - Responsive */}
@@ -170,6 +176,7 @@ export default function Dashboard() {
                   NCR: stats?.byType?.ncr || 0,
                   CDF: stats?.byType?.cdf || 0,
                   CHR: stats?.byType?.chr || 0,
+                  CR: stats?.byType?.captain || 0,
                 }).map(([type, count]) => (
                   <div key={type} className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{type}</span>

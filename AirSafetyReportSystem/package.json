@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "author": {
+    "name": "Ahmed Alhesh",
+    "email": "ahmed.alhesh@gmail.com"
+  },
   "scripts": {
     "dev": "tsx server/index.ts",
     "start": "tsx server/index.ts",
@@ -44,8 +48,10 @@
     "@tanstack/react-query": "^5.60.5",
     "@types/html2canvas": "^0.5.35",
     "@types/multer": "^2.0.0",
+    "arabic-reshaper": "^1.1.0",
     "bcryptjs": "^3.0.2",
     "better-sqlite3": "^12.4.1",
+    "bidi": "^0.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

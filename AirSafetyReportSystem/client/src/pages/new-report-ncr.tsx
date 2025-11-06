@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateInputDDMMYYYY } from "@/components/ui/date-input-ddmmyyyy";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const schema = z.object({
   // معلومات عامة
@@ -52,7 +63,7 @@ const schema = z.object({
 
   // تقرير السلامة/الأمن/الخدمة غير المطابقة
   directManagerNotes: z.string().optional(),
-  needsCorrection: z.enum(["yes", "no"]).optional(),
+  needsCorrection: z.enum(["yes", "no"]).nullable().optional(),
   correctionDetails: z.string().optional(),
   correctionDueDate: z.string().optional(),
   personAssignedName: z.string().optional(),
@@ -60,7 +71,7 @@ const schema = z.object({
   executorName: z.string().optional(),
   executorTitle: z.string().optional(),
   proposalNotes: z.string().optional(),
-  proposalApprove: z.enum(["yes", "no"]).optional(),
+  proposalApprove: z.enum(["yes", "no"]).nullable().optional(),
   proposalSignerName: z.string().optional(),
   proposalSignerTitle: z.string().optional(),
   proposalSignerDate: z.string().optional(),
@@ -81,10 +92,15 @@ export default function NewReportNCR() {
   const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
 
-  const { register, handleSubmit, setValue, watch, formState: { isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {},
+    defaultValues: {
+      needsCorrection: undefined,
+      proposalApprove: undefined,
+    },
   });
 
   const toggle = (key: keyof FormData) => setValue(key, !watch(key as any) as any);
@@ -160,11 +176,17 @@ export default function NewReportNCR() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('date')} />
+                <DateInputDDMMYYYY
+                  value={watch('date')}
+                  onChange={(val) => setValue('date', val)}
+                />
               </div>
               <div>
                 <label className="text-sm">تاريخ الرحلة</label>
-                <Input type="date" {...register('flightDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('flightDate')}
+                  onChange={(val) => setValue('flightDate', val)}
+                />
               </div>
               <div>
                 <label className="text-sm">رقم الرحلة</label>
@@ -247,7 +269,10 @@ export default function NewReportNCR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('discovererDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('discovererDate')}
+                  onChange={(val) => setValue('discovererDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -268,7 +293,10 @@ export default function NewReportNCR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('analystDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('analystDate')}
+                  onChange={(val) => setValue('analystDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -281,8 +309,34 @@ export default function NewReportNCR() {
               <Textarea rows={5} {...register('directManagerNotes')} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <label className="flex items-center gap-2 col-span-2 sm:col-span-1"><input type="radio" value="yes" {...register('needsCorrection')} /> الحالة تحتاج إلى تصحيح</label>
-              <label className="flex items-center gap-2 col-span-2 sm:col-span-1"><input type="radio" value="no" {...register('needsCorrection')} /> الحالة لا تحتاج إلى تصحيح</label>
+              <Controller
+                name="needsCorrection"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <label className="flex items-center gap-2 col-span-2 sm:col-span-1">
+                      <input 
+                        type="radio" 
+                        value="yes" 
+                        checked={field.value === "yes"}
+                        onChange={() => field.onChange("yes")}
+                        onBlur={field.onBlur}
+                      /> 
+                      الحالة تحتاج إلى تصحيح
+                    </label>
+                    <label className="flex items-center gap-2 col-span-2 sm:col-span-1">
+                      <input 
+                        type="radio" 
+                        value="no" 
+                        checked={field.value === "no"}
+                        onChange={() => field.onChange("no")}
+                        onBlur={field.onBlur}
+                      /> 
+                      الحالة لا تحتاج إلى تصحيح
+                    </label>
+                  </>
+                )}
+              />
             </div>
             <div>
               <label className="text-sm">تفاصيل التصحيح (عند الحاجة له)</label>
@@ -291,7 +345,10 @@ export default function NewReportNCR() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm">التاريخ المطلوب لإنهاء التصحيح</label>
-                <Input type="date" {...register('correctionDueDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('correctionDueDate')}
+                  onChange={(val) => setValue('correctionDueDate', val)}
+                />
               </div>
               <div>
                 <label className="text-sm">اسم ووظيفة الشخص الذي حُدد لتنفيذ التصحيح</label>
@@ -309,8 +366,34 @@ export default function NewReportNCR() {
           <Card className="p-4 sm:p-6 space-y-4">
             <h2 className="font-semibold">الملاحظات على الإجراء التصحيحي المقترح</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-              <label className="flex items-center gap-2 col-span-2 sm:col-span-1"><input type="radio" value="yes" {...register('proposalApprove')} /> أقرّح القيام بإجراء تصحيحي</label>
-              <label className="flex items-center gap-2 col-span-2 sm:col-span-1"><input type="radio" value="no" {...register('proposalApprove')} /> لا أقرّح القيام بإجراء تصحيحي</label>
+              <Controller
+                name="proposalApprove"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <label className="flex items-center gap-2 col-span-2 sm:col-span-1">
+                      <input 
+                        type="radio" 
+                        value="yes" 
+                        checked={field.value === "yes"}
+                        onChange={() => field.onChange("yes")}
+                        onBlur={field.onBlur}
+                      /> 
+                      أقرّح القيام بإجراء تصحيحي
+                    </label>
+                    <label className="flex items-center gap-2 col-span-2 sm:col-span-1">
+                      <input 
+                        type="radio" 
+                        value="no" 
+                        checked={field.value === "no"}
+                        onChange={() => field.onChange("no")}
+                        onBlur={field.onBlur}
+                      /> 
+                      لا أقرّح القيام بإجراء تصحيحي
+                    </label>
+                  </>
+                )}
+              />
             </div>
             <div>
               <label className="text-sm">ملاحظات المسؤول المباشر</label>
@@ -327,7 +410,10 @@ export default function NewReportNCR() {
               </div>
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('proposalSignerDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('proposalSignerDate')}
+                  onChange={(val) => setValue('proposalSignerDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -340,7 +426,10 @@ export default function NewReportNCR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('correctionResponsibleDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('correctionResponsibleDate')}
+                  onChange={(val) => setValue('correctionResponsibleDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -355,7 +444,10 @@ export default function NewReportNCR() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm">تاريخ المتابعة</label>
-                <Input type="date" {...register('followupDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('followupDate')}
+                  onChange={(val) => setValue('followupDate', val)}
+                />
               </div>
             </div>
             <div>
@@ -365,18 +457,54 @@ export default function NewReportNCR() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="text-sm">تاريخ الإغلاق</label>
-                <Input type="date" {...register('closureDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('closureDate')}
+                  onChange={(val) => setValue('closureDate', val)}
+                />
               </div>
               
             </div>
           </Card>
 
           <div className="flex justify-center sm:justify-end pt-2">
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8">
+            <Button 
+              type="button" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto px-8"
+              onClick={handleSubmit((data) => {
+                setPendingSubmit(() => () => onSubmit(data));
+                setShowConfirmDialog(true);
+              })}
+            >
               {isSubmitting ? 'جاري الإرسال...' : 'إرسال تقرير عدم المطابقة'}
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الإرسال</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من إرسال تقرير عدم المطابقة (NCR)؟ سيتم حفظ التقرير وإرساله إلى النظام.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  if (pendingSubmit) {
+                    pendingSubmit();
+                    setPendingSubmit(null);
+                  }
+                }}
+              >
+                تأكيد الإرسال
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

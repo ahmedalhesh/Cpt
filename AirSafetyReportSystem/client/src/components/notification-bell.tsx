@@ -124,7 +124,13 @@ export function NotificationBell() {
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return date.toLocaleDateString();
+    // Use 24-hour format: dd/MM/yyyy HH:mm
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
   };
 
   // Smart routing function for notification bell
@@ -132,9 +138,25 @@ export function NotificationBell() {
     console.log(`🔔 [BELL] Notification clicked: ${notification.title}`);
     console.log(`🔔 [BELL] Related report ID: ${notification.relatedReportId}`);
     
-    // Mark notification as read if not already read
+    // Mark notification as read if not already read - Optimistic update
     if (!notification.isRead) {
       console.log(`📖 [BELL] Marking notification as read...`);
+      
+      // Optimistic update: Update UI immediately
+      queryClient.setQueryData<Notification[]>(["/api/notifications"], (old) => {
+        if (!old) return old;
+        return old.map((n) => 
+          n.id === notification.id ? { ...n, isRead: true } : n
+        );
+      });
+      
+      // Update unread count optimistically
+      queryClient.setQueryData<number>(["/api/notifications/unread-count"], (old) => {
+        const currentCount = old || 0;
+        return Math.max(0, currentCount - 1);
+      });
+      
+      // Then update on server (fire and forget)
       try {
         const token = localStorage.getItem('token');
         if (token) {
@@ -146,12 +168,15 @@ export function NotificationBell() {
             },
           });
           
-          // Invalidate queries to refresh the UI and sync with notifications page
+          // Invalidate queries to sync with server state
           queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
           queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
         }
       } catch (error) {
         console.error('❌ [BELL] Error marking notification as read:', error);
+        // Revert optimistic update on error
+        queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
       }
     }
 

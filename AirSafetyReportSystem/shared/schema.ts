@@ -10,17 +10,6 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table.
-export const sessions = sqliteTable(
-  "sessions",
-  {
-    sid: text("sid").primaryKey(),
-    sess: text("sess").notNull(),
-    expire: text("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
-
 // User storage table with role support
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -122,7 +111,7 @@ export const reports = sqliteTable("reports", {
   // Generic extra data (JSON string) for various report forms
   extraData: text("extra_data"),
   
-  // Commander's Discretion Form (CDF) fields
+  // Commander's Discretion Report (CDR) fields
   discretionReason: text("discretion_reason"),
   timeExtension: text("time_extension"),
   crewFatigueDetails: text("crew_fatigue_details"),
@@ -197,7 +186,7 @@ export const insertReportSchema = createInsertSchema(reports, {
   responsiblePerson: (schema) => schema.nullish(),
   preventiveActions: (schema) => schema.nullish(),
   
-  // CDF fields
+  // CDR fields
   discretionReason: (schema) => schema.nullish(),
   timeExtension: (schema) => schema.nullish(),
   crewFatigueDetails: (schema) => schema.nullish(),

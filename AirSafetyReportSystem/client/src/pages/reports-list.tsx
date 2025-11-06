@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +15,12 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Link } from "wouter";
-import { Search, Calendar, Eye, FileText, Clock, CheckCircle2, AlertTriangle, Filter, User as UserIcon, CalendarDays, SortAsc, SortDesc, Plus, XCircle } from "lucide-react";
+import { Search, Calendar, Eye, FileText, Clock, CheckCircle2, AlertTriangle, Filter, User as UserIcon, CalendarDays, SortAsc, SortDesc, Plus, XCircle, Check, ChevronsUpDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ReportTypeBadge } from "@/components/report-type-badge";
 import { StatusBadge } from "@/components/status-badge";
-import { StatCard } from "@/components/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export default function ReportsList() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [submittedByFilter, setSubmittedByFilter] = useState<string>("all");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [submittedByOpen, setSubmittedByOpen] = useState(false);
 
   // Report creation for Captains and First Officers only
   const canCreateReports = user?.role === 'captain' || user?.role === 'first_officer';
@@ -83,6 +85,12 @@ export default function ReportsList() {
 
       return await res.json();
     },
+  });
+
+  // Fetch users for the filter dropdown (admin only)
+  const { data: users } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    enabled: user?.role === 'admin',
   });
 
   const filteredReports = reports?.filter((report) => {
@@ -130,8 +138,16 @@ export default function ReportsList() {
     
     // Submitted By filter (admin only)
     if (user?.role === 'admin' && submittedByFilter !== 'all') {
-      const role = report.submitter?.role || '';
-      if (role !== submittedByFilter) return false;
+      if (submittedByFilter === 'captain') {
+        // Filter by role captain
+        if (report.submitter?.role !== 'captain') return false;
+      } else if (submittedByFilter === 'first_officer') {
+        // Filter by role first_officer
+        if (report.submitter?.role !== 'first_officer') return false;
+      } else {
+        // Filter by specific user ID
+        if (report.submitter?.id !== submittedByFilter) return false;
+      }
     }
 
     if (searchQuery) {
@@ -177,7 +193,7 @@ export default function ReportsList() {
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
                 {user?.role === 'admin' ? 'All Reports' : 'My Reports'}
               </h1>
-              <p className="text-muted-foreground">
+          <p className="text-muted-foreground">
                 {user?.role === 'admin' 
                   ? 'Browse and manage all aviation safety reports' 
                   : 'View and manage your submitted reports'
@@ -199,7 +215,7 @@ export default function ReportsList() {
                     <Link href="/reports/new/ncr">New NCR Report</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/reports/new/cdf">New CDF Report</Link>
+                    <Link href="/reports/new/cdf">New CDR Report</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/reports/new/chr">New CHR Report</Link>
@@ -210,148 +226,77 @@ export default function ReportsList() {
                   <DropdownMenuItem asChild>
                     <Link href="/reports/new/rir">New RIR Report</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/reports/new/captain">New CR Report</Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
           </div>
         </div>
 
-        {/* Quick Stats */}
-        {reports && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
-            {user?.role === 'admin' ? (
-              // Admin Reports Stats
-              <>
-                <StatCard
-                  title="Total Reports"
-                  value={reports.length}
-                  icon={FileText}
-                  subtitle="All system reports"
-                />
-                <StatCard
-                  title="Pending Review"
-                  value={reports.filter(r => r.status === 'in_review').length}
-                  icon={Clock}
-                  subtitle="Awaiting your review"
-                />
-                <StatCard
-                  title="Resolved"
-                  value={reports.filter(r => r.status === 'closed').length}
-                  icon={CheckCircle2}
-                  subtitle="Successfully closed"
-                />
-                <StatCard
-                  title="New Submissions"
-                  value={reports.filter(r => r.status === 'submitted').length}
-                  icon={AlertTriangle}
-                  subtitle="Require immediate attention"
-                />
-                <StatCard
-                  title="Rejected"
-                  value={reports.filter(r => r.status === 'rejected').length}
-                  icon={XCircle}
-                  subtitle="Reports that were rejected"
-                />
-              </>
-            ) : (
-              // User Reports Stats
-              <>
-                <StatCard
-                  title="My Reports"
-                  value={reports.length}
-                  icon={FileText}
-                  subtitle="Reports I submitted"
-                />
-                <StatCard
-                  title="Under Review"
-                  value={reports.filter(r => r.status === 'in_review').length}
-                  icon={Clock}
-                  subtitle="Being reviewed by admin"
-                />
-                <StatCard
-                  title="Approved"
-                  value={reports.filter(r => r.status === 'closed').length}
-                  icon={CheckCircle2}
-                  subtitle="Successfully approved"
-                />
-                <StatCard
-                  title="Recent"
-                  value={reports.filter(r => r.status === 'submitted').length}
-                  icon={AlertTriangle}
-                  subtitle="Recently submitted"
-                />
-                <StatCard
-                  title="Rejected"
-                  value={reports.filter(r => r.status === 'rejected').length}
-                  icon={XCircle}
-                  subtitle="Reports that were rejected"
-                />
-              </>
-            )}
-          </div>
-        )}
-
         {/* Filters */}
         <Card className="p-6 mb-6">
           <div className="space-y-4">
             {/* Basic Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
                     placeholder="Search by #ID, description, or flight number..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                    data-testid="input-search"
-                  />
-                </div>
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search"
+                />
               </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger data-testid="select-type-filter">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="asr">Air Safety Report</SelectItem>
-                  <SelectItem value="or">Occurrence Report</SelectItem>
-                  <SelectItem value="rir">Ramp Incident</SelectItem>
-                  <SelectItem value="ncr">Nonconformity</SelectItem>
-                  <SelectItem value="cdf">Commander's Discretion</SelectItem>
-                  <SelectItem value="chr">Hazard Report</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger data-testid="select-status-filter">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="in_review">In Review</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
+            </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger data-testid="select-type-filter">
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="asr">Air Safety Report</SelectItem>
+                <SelectItem value="or">Occurrence Report</SelectItem>
+                <SelectItem value="rir">Ramp Incident</SelectItem>
+                <SelectItem value="ncr">Nonconformity</SelectItem>
+                <SelectItem value="cdf">Commander's Discretion</SelectItem>
+                <SelectItem value="chr">Hazard Report</SelectItem>
+                  <SelectItem value="captain">CR</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger data-testid="select-status-filter">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="in_review">In Review</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
             </div>
 
-            {/* Advanced Filters Toggle */}
-            <div className="flex items-center justify-between">
+            {/* Advanced Filters Toggle and Sort */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pt-2 border-t">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Filter className="h-4 w-4" />
                 {showAdvanced ? 'Hide' : 'Show'} Advanced Filters
               </Button>
               
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Sort by:</span>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-foreground whitespace-nowrap">Sort by:</label>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -455,36 +400,138 @@ export default function ReportsList() {
                       <UserIcon className="h-4 w-4" />
                       Submitted By
                     </label>
-                    <Select value={submittedByFilter} onValueChange={setSubmittedByFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Users" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Users</SelectItem>
-                        <SelectItem value="captain">Captains</SelectItem>
-                        <SelectItem value="first_officer">First Officers</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Popover open={submittedByOpen} onOpenChange={setSubmittedByOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={submittedByOpen}
+                          className="w-full justify-between"
+                        >
+                          {submittedByFilter === "all"
+                            ? "All Users"
+                            : submittedByFilter === "captain"
+                            ? "All Captains"
+                            : submittedByFilter === "first_officer"
+                            ? "All First Officers"
+                            : users?.find((u) => u.id === submittedByFilter)
+                            ? users.find((u) => u.id === submittedByFilter)?.firstName && users.find((u) => u.id === submittedByFilter)?.lastName
+                              ? `${users.find((u) => u.id === submittedByFilter)?.firstName} ${users.find((u) => u.id === submittedByFilter)?.lastName} (${users.find((u) => u.id === submittedByFilter)?.role === 'captain' ? 'Captain' : 'First Officer'})`
+                              : users.find((u) => u.id === submittedByFilter)?.email || 'Unknown'
+                            : "Select user..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search users..." />
+                          <CommandList>
+                            <CommandEmpty>No users found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="all"
+                                onSelect={() => {
+                                  setSubmittedByFilter("all");
+                                  setSubmittedByOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    submittedByFilter === "all" ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                All Users
+                              </CommandItem>
+                              <CommandItem
+                                value="captain"
+                                onSelect={() => {
+                                  setSubmittedByFilter("captain");
+                                  setSubmittedByOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    submittedByFilter === "captain" ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                All Captains
+                              </CommandItem>
+                              <CommandItem
+                                value="first_officer"
+                                onSelect={() => {
+                                  setSubmittedByFilter("first_officer");
+                                  setSubmittedByOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    submittedByFilter === "first_officer" ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                All First Officers
+                              </CommandItem>
+                            </CommandGroup>
+                            {users && users.filter(u => u.role === 'captain').length > 0 && (
+                              <CommandGroup heading="Captains">
+                                {users
+                                  .filter(u => u.role === 'captain')
+                                  .map((captain) => (
+                                    <CommandItem
+                                      key={captain.id}
+                                      value={`${captain.firstName || ''} ${captain.lastName || ''} ${captain.email || ''} captain`}
+                                      onSelect={() => {
+                                        setSubmittedByFilter(captain.id);
+                                        setSubmittedByOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          submittedByFilter === captain.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {captain.firstName && captain.lastName 
+                                        ? `${captain.firstName} ${captain.lastName} (Captain)`
+                                        : captain.email || 'Unknown'}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            )}
+                            {users && users.filter(u => u.role === 'first_officer').length > 0 && (
+                              <CommandGroup heading="First Officers">
+                                {users
+                                  .filter(u => u.role === 'first_officer')
+                                  .map((fo) => (
+                                    <CommandItem
+                                      key={fo.id}
+                                      value={`${fo.firstName || ''} ${fo.lastName || ''} ${fo.email || ''} first officer`}
+                                      onSelect={() => {
+                                        setSubmittedByFilter(fo.id);
+                                        setSubmittedByOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          submittedByFilter === fo.id ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {fo.firstName && fo.lastName 
+                                        ? `${fo.firstName} ${fo.lastName} (First Officer)`
+                                        : fo.email || 'Unknown'}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            )}
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 )}
-
-                <div>
-                  <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Priority
-                  </label>
-                  <Select value="all" onValueChange={() => {}}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Priorities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      <SelectItem value="high">High Priority</SelectItem>
-                      <SelectItem value="medium">Medium Priority</SelectItem>
-                      <SelectItem value="low">Low Priority</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
             )}
           </div>
@@ -527,25 +574,21 @@ export default function ReportsList() {
                     <StatusBadge status={report.status} />
                   </div>
                   {report.createdAt && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(report.createdAt), 'MMM dd, yyyy')}
+                    <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(report.createdAt), 'MMM dd, yyyy')}
+                      </div>
+                      <div className="flex items-center gap-1 font-mono">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(report.createdAt), 'HH:mm')}
+                      </div>
                     </div>
                   )}
                 </div>
                 
-                <p className="text-xs font-mono text-muted-foreground mb-3" data-testid={`text-report-id-${report.id}`}>
+                <p className="text-xs font-mono text-muted-foreground mb-4" data-testid={`text-report-id-${report.id}`}>
                   #{report.id.slice(0, 5).toUpperCase()}
-                </p>
-
-                {report.flightNumber && (
-                  <p className="text-sm font-medium mb-2">
-                    Flight: <span className="font-mono">{report.flightNumber}</span>
-                  </p>
-                )}
-
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                  {report.description}
                 </p>
 
                 <div className="flex items-center justify-between">
@@ -583,59 +626,65 @@ export default function ReportsList() {
                     ({filteredReports.filter(r => r.status === 'closed' || r.status === 'rejected').length})
                   </span>
                 </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredReports
                     .filter(r => r.status === 'closed' || r.status === 'rejected')
                     .map((report) => (
-                      <Card key={report.id} className="p-6 hover-elevate" data-testid={`card-report-${report.id}`}>
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex flex-wrap gap-2">
-                            <ReportTypeBadge type={report.reportType} short />
-                            <StatusBadge status={report.status} />
-                          </div>
-                          {report.createdAt && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              {format(new Date(report.createdAt), 'MMM dd, yyyy')}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <p className="text-xs font-mono text-muted-foreground mb-3" data-testid={`text-report-id-${report.id}`}>
+              <Card key={report.id} className="p-6 hover-elevate" data-testid={`card-report-${report.id}`}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex flex-wrap gap-2">
+                    <ReportTypeBadge type={report.reportType} short />
+                    <StatusBadge status={report.status} />
+                  </div>
+                  {report.createdAt && (
+                            <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(report.createdAt), 'MMM dd, yyyy')}
+                              </div>
+                              <div className="flex items-center gap-1 font-mono">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(report.createdAt), 'HH:mm')}
+                              </div>
+                    </div>
+                  )}
+                </div>
+                
+                <p className="text-xs font-mono text-muted-foreground mb-3" data-testid={`text-report-id-${report.id}`}>
                           #{report.id.slice(0, 5).toUpperCase()}
-                        </p>
+                </p>
 
-                        {report.flightNumber && (
-                          <p className="text-sm font-medium mb-2">
-                            Flight: <span className="font-mono">{report.flightNumber}</span>
-                          </p>
-                        )}
+                {report.flightNumber && (
+                  <p className="text-sm font-medium mb-2">
+                    Flight: <span className="font-mono">{report.flightNumber}</span>
+                  </p>
+                )}
 
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                          {report.description}
-                        </p>
+                <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                  {report.description}
+                </p>
 
-                        <div className="flex items-center justify-between">
-                          <div className="text-xs text-muted-foreground">
-                            {report.isAnonymous === 1 ? (
-                              <span>Anonymous Report</span>
-                            ) : (
-                              <span>
-                                By: {report.submitter?.firstName && report.submitter?.lastName
-                                  ? `${report.submitter.firstName} ${report.submitter.lastName}`
-                                  : report.submitter?.email || "Unknown"}
-                              </span>
-                            )}
-                          </div>
-                          <Button size="sm" variant="outline" asChild data-testid={`button-view-${report.id}`}>
-                            <Link href={`/reports/${report.id}`}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Link>
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-muted-foreground">
+                    {report.isAnonymous === 1 ? (
+                      <span>Anonymous Report</span>
+                    ) : (
+                      <span>
+                        By: {report.submitter?.firstName && report.submitter?.lastName
+                          ? `${report.submitter.firstName} ${report.submitter.lastName}`
+                          : report.submitter?.email || "Unknown"}
+                      </span>
+                    )}
+                  </div>
+                  <Button size="sm" variant="outline" asChild data-testid={`button-view-${report.id}`}>
+                    <Link href={`/reports/${report.id}`}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Link>
+                  </Button>
+                </div>
+              </Card>
+            ))}
                 </div>
               </div>
             )}

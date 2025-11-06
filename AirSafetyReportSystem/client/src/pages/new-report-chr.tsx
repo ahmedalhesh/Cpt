@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,13 +9,22 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { DateInputDDMMYYYY } from "@/components/ui/date-input-ddmmyyyy";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from "lucide-react";
 
 // Confidential Hazard / Occurrence Report (CHR) — Arabic/English
 const schema = z.object({
-  reportRef: z.string().optional(),
-  isAnonymous: z.boolean().optional(),
-
   hazardDescription: z.string().optional(), // All fields are optional
   recommendations: z.string().optional(),
 
@@ -36,7 +45,7 @@ const schema = z.object({
   correctiveDate: z.string().optional(),
 
   followUpActionTaken: z.string().optional(),
-  followUpDecision: z.enum(["SAT", "UNSAT", "NEXT_AUDIT"]).optional(),
+  followUpDecision: z.enum(["SAT", "UNSAT", "NEXT_AUDIT"]).nullable().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -46,10 +55,14 @@ export default function NewReportCHR() {
   const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
 
-  const { register, handleSubmit, setValue, watch, formState: { isSubmitting, errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { isSubmitting, errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { isAnonymous: false },
+    defaultValues: { 
+      followUpDecision: undefined,
+    },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -60,17 +73,25 @@ export default function NewReportCHR() {
 
     const lines: string[] = [];
     lines.push('Confidential Hazard / Occurrence Report (CHR)');
-    if (data.reportRef) lines.push(`Report ref: ${data.reportRef}`);
     if (data.hazardDescription) lines.push(`Hazard: ${data.hazardDescription}`);
     if (data.recommendations) lines.push(`Recommendations: ${data.recommendations}`);
+
+    // Convert DD/MM/YYYY to YYYY-MM-DD for ISO date string
+    let eventDateTime: string | undefined = undefined;
+    if (data.reporterDate) {
+      const [day, month, year] = data.reporterDate.split('/');
+      if (day && month && year) {
+        eventDateTime = new Date(`${year}-${month}-${day}T00:00:00`).toISOString();
+      }
+    }
 
     const payload = {
       reportType: 'chr',
       description: lines.join('\n'),
       flightNumber: undefined,
       aircraftType: undefined,
-      eventDateTime: data.reporterDate ? new Date(`${data.reporterDate}T00:00:00`).toISOString() : undefined,
-      isAnonymous: data.isAnonymous ? 1 : 0,
+      eventDateTime,
+      isAnonymous: 0,
       extraData: data,
     } as any;
 
@@ -114,19 +135,15 @@ export default function NewReportCHR() {
           </Button>
         </div>
 
+        <Alert className="mb-4 sm:mb-6 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-sm text-amber-900 dark:text-amber-100">
+            <strong className="font-semibold">ملاحظة هامة:</strong> في حالة رغبتك في إرسال التقرير بدون هوية (مجهول الهوية)، يرجى استخدام النموذج اليدوي المخصص لهذا الغرض. هذا النموذج الإلكتروني يتطلب تسجيل معلومات الهوية.
+          </AlertDescription>
+        </Alert>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           <Card className="p-4 sm:p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="text-sm">رقم المرجع</label>
-                <Input {...register('reportRef')} />
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={!!watch('isAnonymous')} onCheckedChange={(v) => setValue('isAnonymous', !!v)} />
-                إرسال التقرير كمجهول الهوية
-              </label>
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">وصف مختصر لمصدر الخطر</label>
@@ -158,7 +175,10 @@ export default function NewReportCHR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('reporterDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('reporterDate')}
+                  onChange={(val) => setValue('reporterDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -174,7 +194,10 @@ export default function NewReportCHR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('safetyOfficerDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('safetyOfficerDate')}
+                  onChange={(val) => setValue('safetyOfficerDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -190,7 +213,10 @@ export default function NewReportCHR() {
               
               <div>
                 <label className="text-sm">التاريخ</label>
-                <Input type="date" {...register('correctiveDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('correctiveDate')}
+                  onChange={(val) => setValue('correctiveDate', val)}
+                />
               </div>
             </div>
           </Card>
@@ -203,18 +229,86 @@ export default function NewReportCHR() {
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <span>القرار:</span>
-              <label className="flex items-center gap-2"><input type="radio" value="SAT" {...register('followUpDecision')} /> SAT? مقبول؟</label>
-              <label className="flex items-center gap-2"><input type="radio" value="UNSAT" {...register('followUpDecision')} /> UNSAT غير مقبول</label>
-              <label className="flex items-center gap-2"><input type="radio" value="NEXT_AUDIT" {...register('followUpDecision')} /> NEXT AUDIT التدقيق القادم</label>
+              <Controller
+                name="followUpDecision"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <label className="flex items-center gap-2">
+                      <input 
+                        type="radio" 
+                        value="SAT" 
+                        checked={field.value === "SAT"}
+                        onChange={() => field.onChange("SAT")}
+                        onBlur={field.onBlur}
+                      /> 
+                      SAT? مقبول؟
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input 
+                        type="radio" 
+                        value="UNSAT" 
+                        checked={field.value === "UNSAT"}
+                        onChange={() => field.onChange("UNSAT")}
+                        onBlur={field.onBlur}
+                      /> 
+                      UNSAT غير مقبول
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input 
+                        type="radio" 
+                        value="NEXT_AUDIT" 
+                        checked={field.value === "NEXT_AUDIT"}
+                        onChange={() => field.onChange("NEXT_AUDIT")}
+                        onBlur={field.onBlur}
+                      /> 
+                      NEXT AUDIT التدقيق القادم
+                    </label>
+                  </>
+                )}
+              />
             </div>
           </Card>
 
           <div className="flex justify-center sm:justify-end">
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8">
+            <Button 
+              type="button" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto px-8"
+              onClick={handleSubmit((data) => {
+                setPendingSubmit(() => () => onSubmit(data));
+                setShowConfirmDialog(true);
+              })}
+            >
               {isSubmitting ? 'جاري الإرسال...' : 'إرسال تقرير CHR'}
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الإرسال</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من إرسال تقرير CHR؟ سيتم حفظ التقرير وإرساله إلى النظام.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  if (pendingSubmit) {
+                    pendingSubmit();
+                    setPendingSubmit(null);
+                  }
+                }}
+              >
+                تأكيد الإرسال
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

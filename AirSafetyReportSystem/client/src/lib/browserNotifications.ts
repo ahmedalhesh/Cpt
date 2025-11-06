@@ -209,7 +209,7 @@ class BrowserNotificationService {
       const options: NotificationOptions = {
         body: data.message,
         icon: this.getNotificationIcon(data.type),
-        badge: '/favicon.png',
+        badge: undefined, // Use browser default
         tag: data.id, // Tag to replace notifications with same ID
         requireInteraction: false,
         silent: false,
@@ -302,16 +302,10 @@ class BrowserNotificationService {
   /**
    * Get icon URL based on notification type
    */
-  private getNotificationIcon(type: string): string {
-    // You can customize these icon paths based on your needs
-    const icons: Record<string, string> = {
-      error: '/favicon.png',
-      warning: '/favicon.png',
-      success: '/favicon.png',
-      info: '/favicon.png',
-    };
-
-    return icons[type] || icons.info;
+  private getNotificationIcon(type: string): string | undefined {
+    // Use browser default icons for notifications
+    // You can customize these icon paths based on your needs if you add icons later
+    return undefined; // Browser will use default icon
   }
 }
 

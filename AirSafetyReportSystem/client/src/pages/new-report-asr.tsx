@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { TimeInput24 } from "@/components/ui/time-input-24";
+import { DateInputDDMMYYYY } from "@/components/ui/date-input-ddmmyyyy";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const schema = z.object({
   // Office use
@@ -140,6 +152,8 @@ export default function NewReportASR() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
 
   const {
     register,
@@ -177,11 +191,8 @@ export default function NewReportASR() {
     if (data.isReportable) headerParts.push(`Reportable: ${data.isReportable}`);
     if (data.eventTypes?.length) headerParts.push(`Types: ${data.eventTypes.join(', ')}`);
     if (data.cm1 || data.cm2 || data.cm3) headerParts.push(`CM1: ${data.cm1 ?? ''} | CM2: ${data.cm2 ?? ''} | CM3: ${data.cm3 ?? ''}`);
-    if (data.light || data.timeStandard) {
-      const lightPart = data.light ? `Light: ${data.light}` : '';
-      const standardPart = data.timeStandard ? `Standard: ${data.timeStandard}` : '';
-      const parts = [lightPart, standardPart].filter(Boolean);
-      if (parts.length) headerParts.push(parts.join(' | '));
+    if (data.timeStandard) {
+      headerParts.push(`Standard: ${data.timeStandard}`);
     }
     if (data.divertedTo) headerParts.push(`DivertedTo: ${data.divertedTo}`);
     if (data.registration || data.paxCrew || data.techLogPage) headerParts.push(`Reg: ${data.registration ?? ''} | Pax/Crew: ${data.paxCrew ?? ''} | TechLog: ${data.techLogPage ?? ''}`);
@@ -320,9 +331,120 @@ export default function NewReportASR() {
       return value;
     };
 
+    // Prepare extraData with all detailed fields
+    const extraData: Record<string, any> = {
+      // Header Information
+      isReportable: cleanValue(data.isReportable),
+      eventTypes: data.eventTypes && data.eventTypes.length > 0 ? data.eventTypes : undefined,
+      cm1: cleanValue(data.cm1),
+      cm2: cleanValue(data.cm2),
+      cm3: cleanValue(data.cm3),
+      date: cleanValue(data.date),
+      time: cleanValue(data.time),
+      timeStandard: cleanValue(data.timeStandard),
+      callsign: cleanValue(data.callsign),
+      routeFrom: cleanValue(data.routeFrom),
+      routeTo: cleanValue(data.routeTo),
+      divertedTo: cleanValue(data.divertedTo),
+      aircraftType: cleanValue(data.aircraftType),
+      registration: cleanValue(data.registration),
+      paxCrew: cleanValue(data.paxCrew),
+      techLogPage: cleanValue(data.techLogPage),
+      
+      // Operational Details
+      altitude: cleanValue(data.altitude),
+      speedMach: cleanValue(data.speedMach),
+      fuelDumpKg: cleanValue(data.fuelDumpKg),
+      metConditions: cleanValue(data.metConditions),
+      vmcDistanceKm: cleanValue(data.vmcDistanceKm),
+      
+      // Weather
+      wxWind: cleanValue(data.wxWind),
+      wxVisibility: cleanValue(data.wxVisibility),
+      wxClouds: cleanValue(data.wxClouds),
+      wxTemp: cleanValue(data.wxTemp),
+      wxQnh: cleanValue(data.wxQnh),
+      wxSignificant: data.wxSignificant && data.wxSignificant.length > 0 ? data.wxSignificant : undefined,
+      
+      // Runway
+      runwayDesignator: cleanValue(data.runwayDesignator),
+      runwaySide: cleanValue(data.runwaySide),
+      runwayCondition: cleanValue(data.runwayCondition),
+      
+      // Configuration
+      cfgAutopilot: data.cfgAutopilot !== undefined ? data.cfgAutopilot : undefined,
+      cfgGear: data.cfgGear !== undefined ? data.cfgGear : undefined,
+      cfgFlaps: data.cfgFlaps !== undefined ? data.cfgFlaps : undefined,
+      cfgSlat: data.cfgSlat !== undefined ? data.cfgSlat : undefined,
+      cfgSpoiler: data.cfgSpoiler !== undefined ? data.cfgSpoiler : undefined,
+      
+      // Event Summary
+      eventSummary: cleanValue(data.eventSummary),
+      actionTaken: cleanValue(data.actionTaken),
+      otherInfo: cleanValue(data.otherInfo),
+      
+      // AIRPROX / ATC INCIDENT / TCAS
+      airproxSeverity: cleanValue(data.airproxSeverity),
+      airproxAvoidingAction: cleanValue(data.airproxAvoidingAction),
+      airproxReportedToAtc: cleanValue(data.airproxReportedToAtc),
+      airproxAtcInstruction: cleanValue(data.airproxAtcInstruction),
+      airproxFreq: cleanValue(data.airproxFreq),
+      airproxHeading: cleanValue(data.airproxHeading),
+      airproxVertSep: cleanValue(data.airproxVertSep),
+      airproxHorizSep: cleanValue(data.airproxHorizSep),
+      airproxSquawk: cleanValue(data.airproxSquawk),
+      airproxTcasAlert: cleanValue(data.airproxTcasAlert),
+      airproxRaFollowed: cleanValue(data.airproxRaFollowed),
+      airproxVertDeviation: cleanValue(data.airproxVertDeviation),
+      airproxOtherAcType: cleanValue(data.airproxOtherAcType),
+      airproxOtherAcMarkings: cleanValue(data.airproxOtherAcMarkings),
+      airproxOtherAcCallsign: cleanValue(data.airproxOtherAcCallsign),
+      
+      // WAKE TURBULENCE
+      wakeHeading: cleanValue(data.wakeHeading),
+      wakeTurning: cleanValue(data.wakeTurning),
+      wakeGs: cleanValue(data.wakeGs),
+      wakeEcl: cleanValue(data.wakeEcl),
+      wakeChangeAtt: cleanValue(data.wakeChangeAtt),
+      wakeChangeAlt: cleanValue(data.wakeChangeAlt),
+      wakeBuffet: cleanValue(data.wakeBuffet),
+      wakeSuspectReason: cleanValue(data.wakeSuspectReason),
+      wakeVrtAccel: cleanValue(data.wakeVrtAccel),
+      wakePreceding: cleanValue(data.wakePreceding),
+      wakeAwareBefore: cleanValue(data.wakeAwareBefore),
+      
+      // BIRD STRIKE
+      birdLocation: cleanValue(data.birdLocation),
+      birdType: cleanValue(data.birdType),
+      nrSeen3_1: data.nrSeen3_1 !== undefined ? data.nrSeen3_1 : undefined,
+      nrSeen3_2_10: data.nrSeen3_2_10 !== undefined ? data.nrSeen3_2_10 : undefined,
+      nrSeen3_11_100: data.nrSeen3_11_100 !== undefined ? data.nrSeen3_11_100 : undefined,
+      nrSeen3_more: data.nrSeen3_more !== undefined ? data.nrSeen3_more : undefined,
+      nrSeen4_1: data.nrSeen4_1 !== undefined ? data.nrSeen4_1 : undefined,
+      nrSeen4_2_10: data.nrSeen4_2_10 !== undefined ? data.nrSeen4_2_10 : undefined,
+      nrSeen4_11_100: data.nrSeen4_11_100 !== undefined ? data.nrSeen4_11_100 : undefined,
+      nrSeen4_more: data.nrSeen4_more !== undefined ? data.nrSeen4_more : undefined,
+      nrSeen5_1: data.nrSeen5_1 !== undefined ? data.nrSeen5_1 : undefined,
+      nrSeen5_2_10: data.nrSeen5_2_10 !== undefined ? data.nrSeen5_2_10 : undefined,
+      nrSeen5_11_100: data.nrSeen5_11_100 !== undefined ? data.nrSeen5_11_100 : undefined,
+      nrSeen5_more: data.nrSeen5_more !== undefined ? data.nrSeen5_more : undefined,
+      
+      // Sign-off
+      reporterName: cleanValue(data.reporterName),
+      reporterRank: cleanValue(data.reporterRank),
+      reporterDate: cleanValue(data.reporterDate),
+    };
+
+    // Remove undefined values from extraData
+    Object.keys(extraData).forEach(key => {
+      if (extraData[key] === undefined) {
+        delete extraData[key];
+      }
+    });
+
     const payload: Record<string, any> = {
       reportType: 'asr',
-      description: description || '', // All fields are optional, but description must be string (not null)
+      description: description || '', // Keep description for backward compatibility
       flightNumber: cleanValue(data.callsign),
       aircraftType: cleanValue(data.aircraftType),
       route: cleanValue(`${data.routeFrom} / ${data.routeTo}`),
@@ -348,6 +470,9 @@ export default function NewReportASR() {
       // Images (base64 JPEG or PNG)
       planImage: cleanValue(planImage),
       elevImage: cleanValue(elevImage),
+      
+      // Extra data with all detailed fields
+      extraData: Object.keys(extraData).length > 0 ? extraData : undefined,
     };
 
     // Remove undefined values to reduce payload size
@@ -465,15 +590,21 @@ export default function NewReportASR() {
           </Card>
 
           <Card className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label className="text-sm font-medium">Date</label>
-                <Input type="date" {...register('date')} />
+                <DateInputDDMMYYYY
+                  value={watch('date')}
+                  onChange={(val) => setValue('date', val)}
+                />
                 {errors.date && <p className="text-xs text-destructive mt-1">{errors.date.message}</p>}
               </div>
               <div>
                 <label className="text-sm font-medium">Time</label>
-                <Input type="time" {...register('time')} />
+                <TimeInput24
+                  value={watch('time')}
+                  onChange={(val) => setValue('time', val)}
+                />
                 {errors.time && <p className="text-xs text-destructive mt-1">{errors.time.message}</p>}
               </div>
               <div>
@@ -483,16 +614,6 @@ export default function NewReportASR() {
                   <SelectContent>
                     <SelectItem value="LOCAL">LOCAL</SelectItem>
                     <SelectItem value="UTC">UTC</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Day/Night</label>
-                <Select onValueChange={(v) => setValue('light', v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DAY">DAY</SelectItem>
-                    <SelectItem value="NIGHT">NIGHT</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -678,74 +799,128 @@ export default function NewReportASR() {
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-6 space-y-6">
             <h2 className="font-semibold mb-2">AIRPROX / ATC INCIDENT / TCAS</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium">Severity</label>
-                <Select onValueChange={(v) => setValue('airproxSeverity', v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">LOW</SelectItem>
-                    <SelectItem value="medium">MED</SelectItem>
-                    <SelectItem value="high">HIGH</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Avoiding Action</label>
-                <Select onValueChange={(v) => setValue('airproxAvoidingAction', v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">YES</SelectItem>
-                    <SelectItem value="no">NO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium">ATC Unit</label>
-                <Input {...register('airproxReportedToAtc')} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">ATC Instruction</label>
-                <Input {...register('airproxAtcInstruction')} />
+            
+            {/* Incident Details */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Incident Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Severity</label>
+                  <Select onValueChange={(v) => setValue('airproxSeverity', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">LOW</SelectItem>
+                      <SelectItem value="medium">MED</SelectItem>
+                      <SelectItem value="high">HIGH</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Avoiding Action</label>
+                  <Select onValueChange={(v) => setValue('airproxAvoidingAction', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">YES</SelectItem>
+                      <SelectItem value="no">NO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <Input placeholder="Frequency" {...register('airproxFreq')} />
-              <Input placeholder="Heading (deg)" {...register('airproxHeading')} />
-              <Input placeholder="Vertical Sep (ft)" {...register('airproxVertSep')} />
-              <Input placeholder="Horizontal Sep (M/NM)" {...register('airproxHorizSep')} />
-              <Input placeholder="Squawk" {...register('airproxSquawk')} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium">TCAS Alert</label>
-                <Select onValueChange={(v) => setValue('airproxTcasAlert', v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RA">RA</SelectItem>
-                    <SelectItem value="TA">TA</SelectItem>
-                    <SelectItem value="NONE">NONE</SelectItem>
-                  </SelectContent>
-                </Select>
+
+            {/* ATC Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">ATC Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">ATC Unit</label>
+                  <Input {...register('airproxReportedToAtc')} placeholder="ATC unit name" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Frequency</label>
+                  <Input {...register('airproxFreq')} placeholder="e.g. 121.5" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">ATC Instruction</label>
+                  <Input {...register('airproxAtcInstruction')} placeholder="ATC instruction details" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Heading (deg)</label>
+                  <Input {...register('airproxHeading')} placeholder="e.g. 270" />
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium">RA Followed</label>
-                <Select onValueChange={(v) => setValue('airproxRaFollowed', v as any)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">YES</SelectItem>
-                    <SelectItem value="no">NO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input placeholder="Vertical Deviation (ft)" {...register('airproxVertDeviation')} />
-              <Input placeholder="Other AC Type" {...register('airproxOtherAcType')} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input placeholder="Other AC Markings/Colour" {...register('airproxOtherAcMarkings')} />
-              <Input placeholder="Other AC Callsign/Reg" {...register('airproxOtherAcCallsign')} />
+
+            {/* Separation Details */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Separation Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Vertical Separation (ft)</label>
+                  <Input {...register('airproxVertSep')} placeholder="e.g. 500" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Horizontal Separation (M/NM)</label>
+                  <Input {...register('airproxHorizSep')} placeholder="e.g. 100M" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Squawk</label>
+                  <Input {...register('airproxSquawk')} placeholder="e.g. 7700" />
+                </div>
+              </div>
+            </div>
+
+            {/* TCAS Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">TCAS Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">TCAS Alert</label>
+                  <Select onValueChange={(v) => setValue('airproxTcasAlert', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RA">RA</SelectItem>
+                      <SelectItem value="TA">TA</SelectItem>
+                      <SelectItem value="NONE">NONE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">RA Followed</label>
+                  <Select onValueChange={(v) => setValue('airproxRaFollowed', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">YES</SelectItem>
+                      <SelectItem value="no">NO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Vertical Deviation (ft)</label>
+                  <Input {...register('airproxVertDeviation')} placeholder="e.g. ±200" />
+                </div>
+              </div>
+            </div>
+
+            {/* Other Aircraft Information */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Other Aircraft Information</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Aircraft Type</label>
+                  <Input {...register('airproxOtherAcType')} placeholder="e.g. B737" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Markings/Colour</label>
+                  <Input {...register('airproxOtherAcMarkings')} placeholder="Aircraft markings or color" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Callsign/Registration</label>
+                  <Input {...register('airproxOtherAcCallsign')} placeholder="e.g. A7-ABC or CALL123" />
+                </div>
+              </div>
             </div>
 
             {/* Graphical selectors */}
@@ -1025,57 +1200,105 @@ export default function NewReportASR() {
             </div>
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="p-6 space-y-6">
             <h2 className="font-semibold mb-2">WAKE TURBULENCE</h2>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <Input placeholder="Heading (deg)" {...register('wakeHeading')} />
-              <Select onValueChange={(v) => setValue('wakeTurning', v as any)}>
-                <SelectTrigger><SelectValue placeholder="Turning" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LEFT">LEFT</SelectItem>
-                  <SelectItem value="RIGHT">RIGHT</SelectItem>
-                  <SelectItem value="NO">NO</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select onValueChange={(v) => setValue('wakeGs', v as any)}>
-                <SelectTrigger><SelectValue placeholder="Glideslope" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="HIGH">HIGH</SelectItem>
-                  <SelectItem value="LOW">LOW</SelectItem>
-                  <SelectItem value="ON">ON</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select onValueChange={(v) => setValue('wakeEcl', v as any)}>
-                <SelectTrigger><SelectValue placeholder="Ext Centerline" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LEFT">LEFT</SelectItem>
-                  <SelectItem value="RIGHT">RIGHT</SelectItem>
-                  <SelectItem value="ON">ON</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Change in Attitude (deg)" {...register('wakeChangeAtt')} />
+            
+            {/* Flight Configuration */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Flight Configuration</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Heading (deg)</label>
+                  <Input {...register('wakeHeading')} placeholder="e.g. 270" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Turning</label>
+                  <Select onValueChange={(v) => setValue('wakeTurning', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LEFT">LEFT</SelectItem>
+                      <SelectItem value="RIGHT">RIGHT</SelectItem>
+                      <SelectItem value="NO">NO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Glideslope</label>
+                  <Select onValueChange={(v) => setValue('wakeGs', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HIGH">HIGH</SelectItem>
+                      <SelectItem value="LOW">LOW</SelectItem>
+                      <SelectItem value="ON">ON</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Ext Centerline</label>
+                  <Select onValueChange={(v) => setValue('wakeEcl', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LEFT">LEFT</SelectItem>
+                      <SelectItem value="RIGHT">RIGHT</SelectItem>
+                      <SelectItem value="ON">ON</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Input placeholder="Change in Altitude (ft)" {...register('wakeChangeAlt')} />
-              <Select onValueChange={(v) => setValue('wakeBuffet', v as any)}>
-                <SelectTrigger><SelectValue placeholder="Buffet" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">YES</SelectItem>
-                  <SelectItem value="no">NO</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input placeholder="Why suspect wake turbulence?" {...register('wakeSuspectReason')} />
-              <Input placeholder="Vertical acceleration" {...register('wakeVrtAccel')} />
+
+            {/* Aircraft Effects */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Aircraft Effects</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Change in Attitude (deg)</label>
+                  <Input {...register('wakeChangeAtt')} placeholder="e.g. ±5" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Change in Altitude (ft)</label>
+                  <Input {...register('wakeChangeAlt')} placeholder="e.g. ±100" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Vertical Acceleration</label>
+                  <Input {...register('wakeVrtAccel')} placeholder="e.g. ±0.5g" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Buffet</label>
+                  <Select onValueChange={(v) => setValue('wakeBuffet', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">YES</SelectItem>
+                      <SelectItem value="no">NO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input placeholder="Preceding AC (type/callsign)" {...register('wakePreceding')} />
-              <Select onValueChange={(v) => setValue('wakeAwareBefore', v as any)}>
-                <SelectTrigger><SelectValue placeholder="Aware before?" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">YES</SelectItem>
-                  <SelectItem value="no">NO</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* Wake Turbulence Details */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Wake Turbulence Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Preceding Aircraft</label>
+                  <Input {...register('wakePreceding')} placeholder="Type/callsign (e.g. B777, CALL123)" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Aware Before?</label>
+                  <Select onValueChange={(v) => setValue('wakeAwareBefore', v as any)}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">YES</SelectItem>
+                      <SelectItem value="no">NO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Why Suspect Wake Turbulence?</label>
+                <Input {...register('wakeSuspectReason')} placeholder="Explain why you suspect wake turbulence" />
+              </div>
             </div>
           </Card>
 
@@ -1183,7 +1406,10 @@ export default function NewReportASR() {
               </div>
               <div>
                 <label className="text-sm font-medium">Date</label>
-                <Input type="date" {...register('reporterDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('reporterDate')}
+                  onChange={(val) => setValue('reporterDate', val)}
+                />
               </div>
               
             </div>
@@ -1191,14 +1417,43 @@ export default function NewReportASR() {
 
           <div className="flex justify-center sm:justify-end pt-4">
             <Button 
-              type="submit" 
+              type="button" 
               disabled={isSubmitting}
               className="w-full sm:w-auto px-8 py-3 text-sm sm:text-base"
+              onClick={handleSubmit((data) => {
+                setPendingSubmit(() => () => onSubmit(data));
+                setShowConfirmDialog(true);
+              })}
             >
               {isSubmitting ? 'Submitting...' : 'Submit ASR'}
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الإرسال</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to submit this Air Safety Report (ASR)? The report will be saved and submitted to the system.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  if (pendingSubmit) {
+                    pendingSubmit();
+                    setPendingSubmit(null);
+                  }
+                }}
+              >
+                Confirm Submit
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

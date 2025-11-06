@@ -1,7 +1,0 @@
-{
-  "reportType": "or",
-  "status": "submitted",
-  "isAnonymous": false,
-  "description": "Test OR Report from API",
-  "extraData": "{\"discretionReason\":\"Weather conditions\",\"timeExtension\":\"2 hours\",\"crewFatigueDetails\":\"Normal fatigue levels\",\"finalDecision\":\"Delay departure\"}"
-}

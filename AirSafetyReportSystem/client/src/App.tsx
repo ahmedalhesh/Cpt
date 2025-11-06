@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar, SidebarTrigger } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
@@ -17,6 +17,7 @@ import NewReportRIR from "@/pages/new-report-rir";
 import NewReportNCR from "@/pages/new-report-ncr";
 import NewReportCDF from "@/pages/new-report-cdf";
 import NewReportCHR from "@/pages/new-report-chr";
+import NewReportCaptain from "@/pages/new-report-captain";
 import ReportDetail from "@/pages/report-detail";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
@@ -27,9 +28,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
-import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -73,9 +72,27 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+function HeaderContent() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-12 sm:h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
+        <div className="flex items-center space-x-2 min-w-0">
+          <SidebarTrigger className="mr-1 sm:mr-2 flex-shrink-0" />
+          <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">
+            {/* Title removed as requested */}
+          </h1>
+        </div>
+        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+          <ThemeToggle />
+          <NotificationBell />
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -91,11 +108,11 @@ function AppContent() {
 
   // If not authenticated, show landing/login page
   if (!user) {
-    return (
+  return (
       <Router>
-        <Switch>
-          <Route path="/login" component={Login} />
-          <Route path="/" component={Landing} />
+    <Switch>
+      <Route path="/login" component={Login} />
+        <Route path="/" component={Landing} />
           <Route component={NotFound} />
         </Switch>
       </Router>
@@ -104,86 +121,38 @@ function AppContent() {
 
   // If authenticated, show main app with sidebar
   return (
-    <SidebarProvider>
-      <div className="min-h-screen bg-background">
-        <div className="flex">
-          {/* Sidebar - Fixed positioning for all devices */}
-          <div className={`
-            fixed top-0 left-0 z-50 h-screen
-            transition-transform duration-300 ease-in-out
-            w-64
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:relative lg:translate-x-0 lg:z-40
-            lg:${sidebarOpen ? 'block' : 'block'}
-          `}>
-            <div className="h-full w-64 bg-background border-r shadow-lg lg:shadow-none overflow-y-auto">
-              <AppSidebar />
-            </div>
+    <SidebarProvider defaultOpen={false}>
+      <div className="min-h-screen bg-background flex w-full">
+        <AppSidebar />
+        <main className="flex-1 min-w-0 flex flex-col">
+          <HeaderContent />
+          <div className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
+            <Router>
+              <Switch>
+          <Route path="/" component={Dashboard} />
+                <Route path="/dashboard" component={Dashboard} />
+          <Route path="/reports" component={ReportsList} />
+          <Route path="/reports/new/asr" component={NewReportASR} />
+          <Route path="/reports/new/or" component={NewReportOR} />
+          <Route path="/reports/new/rir" component={NewReportRIR} />
+          <Route path="/reports/new/ncr" component={NewReportNCR} />
+          <Route path="/reports/new/cdf" component={NewReportCDF} />
+          <Route path="/reports/new/chr" component={NewReportCHR} />
+                <Route path="/reports/new/captain" component={NewReportCaptain} />
+                <Route path="/reports/:id" component={ReportDetail} />
+                <Route path="/profile" component={Profile} />
+                <Route path="/settings" component={Settings} />
+                <Route path="/users" component={UsersManagement} />
+                <Route path="/notifications" component={Notifications} />
+      <Route component={NotFound} />
+    </Switch>
+            </Router>
           </div>
-          
-          {/* Overlay for mobile and tablet when sidebar is open */}
-          {sidebarOpen && (
-            <div 
-              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
-            />
-          )}
-          
-          <main className={`flex-1 min-w-0 transition-all duration-300`}>
-            {/* Top Header Bar - Responsive */}
-            <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="flex h-12 sm:h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
-                <div className="flex items-center space-x-2 min-w-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      console.log('Toggle clicked, current state:', sidebarOpen);
-                      setSidebarOpen(!sidebarOpen);
-                    }}
-                    className="mr-1 sm:mr-2 flex-shrink-0"
-                    title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-                  >
-                    {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                  </Button>
-                  <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">
-                    Report System
-                  </h1>
-                </div>
-                <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-                  <ThemeToggle />
-                  <NotificationBell />
-                </div>
-              </div>
-            </header>
-            
-            <div className="p-3 sm:p-4 lg:p-6">
-              <Router>
-                <Switch>
-                  <Route path="/" component={Dashboard} />
-                  <Route path="/dashboard" component={Dashboard} />
-                  <Route path="/reports" component={ReportsList} />
-                  <Route path="/reports/new/asr" component={NewReportASR} />
-                  <Route path="/reports/new/or" component={NewReportOR} />
-                  <Route path="/reports/new/rir" component={NewReportRIR} />
-                  <Route path="/reports/new/ncr" component={NewReportNCR} />
-                  <Route path="/reports/new/cdf" component={NewReportCDF} />
-                  <Route path="/reports/new/chr" component={NewReportCHR} />
-                  <Route path="/reports/:id" component={ReportDetail} />
-                  <Route path="/profile" component={Profile} />
-                  <Route path="/settings" component={Settings} />
-                  <Route path="/users" component={UsersManagement} />
-                  <Route path="/notifications" component={Notifications} />
-                  <Route component={NotFound} />
-                </Switch>
-              </Router>
-            </div>
-          </main>
+          <AppFooter />
+            </main>
         </div>
-        <AppFooter />
-      </div>
-    </SidebarProvider>
-  );
+      </SidebarProvider>
+    );
 }
 
 export default function App() {
@@ -193,7 +162,7 @@ export default function App() {
         <DynamicTitle />
         <DynamicAppIcons />
         <ErrorBoundary>
-          <AppContent />
+        <AppContent />
         </ErrorBoundary>
         <Toaster />
       </TooltipProvider>

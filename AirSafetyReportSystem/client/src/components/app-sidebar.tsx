@@ -141,10 +141,10 @@ export function AppSidebar() {
 
         {/* Create Report Section for Captains and First Officers */}
         {(user?.role === 'captain' || user?.role === 'first_officer') && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Create Report</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
+        <SidebarGroup>
+          <SidebarGroupLabel>Create Report</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === '/reports/new/asr'}>
                     <Link href="/reports/new/asr" data-testid="link-create-asr">
@@ -165,7 +165,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location === '/reports/new/cdf'}>
                     <Link href="/reports/new/cdf" data-testid="link-create-cdf">
                       <Plus className="h-4 w-4" />
-                      <span>New CDF Report</span>
+                      <span>New CDR Report</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -193,9 +193,17 @@ export function AppSidebar() {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === '/reports/new/captain'}>
+                    <Link href="/reports/new/captain" data-testid="link-create-captain">
+                      <Plus className="h-4 w-4" />
+                      <span>New CR Report</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         )}
 
         {user?.role === 'admin' && (

@@ -70,10 +70,20 @@ export default function Login() {
       window.location.href = '/';
     },
     onError: (error: Error) => {
+      // Check if it's a rate limit error
+      let errorMessage = error.message;
+      try {
+        // Try to parse error message if it contains retryAfter
+        if (error.message.includes('retryAfter') || error.message.includes('try again after')) {
+          errorMessage = error.message;
+        }
+      } catch {}
+      
       toast({
         title: "Login failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
+        duration: 5000, // Show for 5 seconds
       });
     },
   });
@@ -169,10 +179,12 @@ export default function Login() {
         <div className="text-center mt-6 text-xs sm:text-sm text-muted-foreground">
           <div>© {currentYear} All rights reserved.</div>
           <div className="mt-1 font-medium">Ahmed .H Alhesh</div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-            <a href="mailto:ahmed.alhesh@gmaul.com" className="hover:underline">ahmed.alhesh@gmaul.com</a>
-            <a href="tel:+218913402222" className="hover:underline">+218913402222</a>
-            <a href="tel:+4808646686" className="hover:underline">+4808646686</a>
+          <div className="flex flex-col items-center justify-center gap-2 sm:gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+              <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>
+              <a href="tel:+218913402222" className="hover:underline">+218 91 340 2222</a>
+            </div>
+            <a href="mailto:ahmed.alhesh@gmail.com" className="hover:underline">ahmed.alhesh@gmail.com</a>
           </div>
         </div>
       </div>

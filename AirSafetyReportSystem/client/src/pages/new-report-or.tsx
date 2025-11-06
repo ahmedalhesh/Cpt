@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,18 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DateInputDDMMYYYY } from "@/components/ui/date-input-ddmmyyyy";
+import { TimeInput24 } from "@/components/ui/time-input-24";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const schema = z.object({
   acReg: z.string().optional(),
@@ -34,8 +46,10 @@ export default function NewReportOR() {
   const canCreate = useMemo(() => user?.role === 'captain' || user?.role === 'first_officer', [user?.role]);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState<(() => void) | null>(null);
 
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {},
   });
@@ -111,7 +125,10 @@ export default function NewReportOR() {
               </div>
               <div>
                 <label className="text-sm">Date</label>
-                <Input type="date" {...register('headerDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('headerDate')}
+                  onChange={(val) => setValue('headerDate', val)}
+                />
               </div>
               <div>
                 <label className="text-sm">Report Ref.</label>
@@ -122,11 +139,17 @@ export default function NewReportOR() {
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="text-sm">Date of Occurrence</label>
-                <Input type="date" {...register('occDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('occDate')}
+                  onChange={(val) => setValue('occDate', val)}
+                />
               </div>
               <div>
                 <label className="text-sm">Time</label>
-                <Input type="time" {...register('occTime')} />
+                <TimeInput24
+                  value={watch('occTime')}
+                  onChange={(val) => setValue('occTime', val)}
+                />
               </div>
               <div className="sm:col-span-2">
                 <label className="text-sm">Location</label>
@@ -171,17 +194,53 @@ export default function NewReportOR() {
               </div>
               <div>
                 <label className="text-sm">Date</label>
-                <Input type="date" {...register('qaDate')} />
+                <DateInputDDMMYYYY
+                  value={watch('qaDate')}
+                  onChange={(val) => setValue('qaDate', val)}
+                />
               </div>
             </div>
           </Card>
 
           <div className="flex justify-center sm:justify-end">
-            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8">
+            <Button 
+              type="button" 
+              disabled={isSubmitting} 
+              className="w-full sm:w-auto px-8"
+              onClick={handleSubmit((data) => {
+                setPendingSubmit(() => () => onSubmit(data));
+                setShowConfirmDialog(true);
+              })}
+            >
               {isSubmitting ? 'Submitting...' : 'Submit OR'}
             </Button>
           </div>
         </form>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to submit this Occurrence Report (OR)? The report will be saved and submitted to the system.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowConfirmDialog(false);
+                  if (pendingSubmit) {
+                    pendingSubmit();
+                    setPendingSubmit(null);
+                  }
+                }}
+              >
+                Confirm Submit
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

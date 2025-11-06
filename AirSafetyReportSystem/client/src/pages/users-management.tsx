@@ -77,6 +77,7 @@ export default function UsersManagement() {
         title: "Success",
         description: "User created successfully",
       });
+      // Reset form will be handled by unmounting the component
     },
     onError: (error: Error) => {
       toast({
@@ -412,6 +413,7 @@ function CreateUserForm({ onSubmit }: { onSubmit: (data: any) => void }) {
   });
   const [emailError, setEmailError] = useState('');
   const [nameError, setNameError] = useState('');
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

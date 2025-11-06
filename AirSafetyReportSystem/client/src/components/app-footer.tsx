@@ -10,9 +10,9 @@ export function AppFooter() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
           <span className="font-medium">Developed by Ahmed H. Alhesh</span>
-          <span>Inspired by Capt. Shams Eddin M. Bzeek</span>
           <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>
           <a href="tel:+218913402222" className="hover:underline">+218 91 340 2222</a>
+          <span>Inspired by Capt. Shams Eddin M. Bzeek</span>
         </div>
       </div>
     </footer>

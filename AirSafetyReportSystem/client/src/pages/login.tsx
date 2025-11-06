@@ -178,7 +178,7 @@ export default function Login() {
         {/* Developer footer (login page) */}
         <div className="text-center mt-6 text-xs sm:text-sm text-muted-foreground">
           <div>© {currentYear} All rights reserved.</div>
-          <div className="mt-1 font-medium">Ahmed .H Alhesh</div>
+          <div className="mt-1 font-medium">Developed and Designed by Ahmed .H Alhesh</div>
           <div className="flex flex-col items-center justify-center gap-2 sm:gap-4">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
               <a href="tel:+14808646686" className="hover:underline">+1 (480) 864-6686</a>

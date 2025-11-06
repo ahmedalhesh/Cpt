@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 function getStoredTheme(): "light" | "dark" {
   const stored = localStorage.getItem("theme");
   if (stored === "light" || stored === "dark") return stored;
-  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
+  // Default to dark if no preference stored
+  return "dark";
 }
 
 function applyTheme(theme: "light" | "dark") {

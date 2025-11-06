@@ -93,7 +93,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="absolute right-4 top-4">
           <ThemeToggle />
@@ -102,10 +102,10 @@ export default function Login() {
           <div className="flex justify-center">
             <CompanyLogo size="xl" className="scale-[2.5]" />
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-foreground">
             {companySettings?.companyName || "Report Sys"}
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-muted-foreground">
             Sign in to your account
           </p>
         </div>
